@@ -10,20 +10,30 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 </div><button id="connect" style="margin-top:10px">Connect / Analyze</button><div id="status" class="status">Not connected.</div></div>
 <div class="card"><div class="muted">Highest observed frequency</div><div id="best" class="best">—</div><div id="summary" class="muted">Waiting for tick data.</div></div>
 <div class="card"><h3>Digits 0–9</h3><div id="digits" class="grid"></div></div>
-<div class="card"><h2 style="margin:0 0 6px">Matches Backtest</h2><div class="muted">Walk-forward test: use the previous ticks to select the most frequent digit, then check the next tick. No future data is used for each prediction.</div>
+<div class="card"><h2 style="margin:0 0 6px">Matches Backtest</h2>
+<div class="muted">Walk-forward research: use only ticks before each prediction. The confidence filter can skip weak setups instead of forcing a Matches prediction.</div>
 <div class="controls" style="margin-top:12px">
-<div><label>Prediction window</label><select id="window"><option value="25">25 previous ticks</option><option value="50">50 previous ticks</option><option value="100" selected>100 previous ticks</option><option value="250">250 previous ticks</option></select></div>
-<div><label>Minimum history</label><div class="status" style="margin-top:0">Predictions start after the selected window.</div></div>
-</div><button id="backtest" class="secondary" style="margin-top:10px">Run Matches Backtest</button><div id="btStatus" class="status">Backtest not run.</div>
+<div><label>Primary window</label><select id="window"><option value="25">25 previous ticks</option><option value="50">50 previous ticks</option><option value="100" selected>100 previous ticks</option><option value="250">250 previous ticks</option></select></div>
+<div><label>Minimum lead over 2nd digit</label><select id="minLead"><option value="0.02">2 percentage points</option><option value="0.03" selected>3 percentage points</option><option value="0.05">5 percentage points</option><option value="0.08">8 percentage points</option></select></div>
+<div><label>Minimum leading frequency</label><select id="minFreq"><option value="0.12">12%</option><option value="0.15" selected>15%</option><option value="0.18">18%</option><option value="0.20">20%</option></select></div>
+<div><label>Multi-window agreement</label><select id="agreement"><option value="2">2 of 4 windows</option><option value="3" selected>3 of 4 windows</option><option value="4">4 of 4 windows</option></select></div>
+</div>
+<div class="small" style="margin-top:10px">Filter logic: the primary window must meet the frequency + lead thresholds, and the selected number of 25/50/100/250-tick windows must agree on the same digit. Non-qualifying ticks are skipped.</div>
+<button id="backtest" class="secondary" style="margin-top:10px">Run Confidence Matches Backtest</button>
+<div id="btStatus" class="status">Backtest not run.</div>
 <div id="btResults" style="margin-top:12px;display:none"><div class="results">
-<div class="metric"><div class="small">Predictions</div><div id="btPredictions" class="value">—</div></div>
+<div class="metric"><div class="small">Signals</div><div id="btPredictions" class="value">—</div></div>
 <div class="metric"><div class="small">Wins</div><div id="btWins" class="value">—</div></div>
 <div class="metric"><div class="small">Losses</div><div id="btLosses" class="value">—</div></div>
 <div class="metric"><div class="small">Win rate</div><div id="btRate" class="value">—</div></div>
+<div class="metric"><div class="small">Skipped</div><div id="btSkipped" class="value">—</div></div>
+<div class="metric"><div class="small">Coverage</div><div id="btCoverage" class="value">—</div></div>
+<div class="metric"><div class="small">Random baseline</div><div class="value">10%</div></div>
+<div class="metric"><div class="small">Win-rate lift</div><div id="btLift" class="value">—</div></div>
 </div><div id="btDetail" class="muted" style="margin-top:10px"></div>
-<h3>Backtest prediction log</h3><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Window frequency</th></tr></thead><tbody id="btLog"></tbody></table></div></div>
+<h3>Confidence prediction log</h3><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Primary freq.</th><th>Lead</th><th>Agreement</th></tr></thead><tbody id="btLog"></tbody></table></div></div>
 <div class="card"><h3>Recent sample</h3><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div>
-<div class="card warn"><strong>Important:</strong> A Matches win requires the predicted digit to equal the next tick's last digit. A high historical frequency does not guarantee the next digit. The backtest is a research tool and does not place trades.</div></div>
+<div class="card warn"><strong>Important:</strong> A Matches win requires the predicted digit to equal the next tick's last digit. The confidence filter can skip weak setups, but it cannot create a guaranteed edge. A small number of signals can produce unstable win rates. This is a research tool and does not place trades.</div></div>
 <script>
 const ENDPOINTS=["wss://api.derivws.com/trading/v1/options/ws/public","wss://ws.binaryws.com/websockets/v3"];
 let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=1000,connecting=false;
@@ -39,20 +49,40 @@ function render(){
  $("recent").innerHTML=ticks.slice(-20).reverse().map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.digit}</strong></td><td>${x.quote}</td><td>${new Date(x.epoch*1000).toLocaleTimeString()}</td></tr>`).join("");
 }
 function mostFrequent(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});let b=0;for(let d=1;d<10;d++){if(c[d]>c[b])b=d}return {digit:b,count:c[b],total:arr.length,counts:c}}
+function windowStats(arr){
+ const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});
+ let order=[0,1,2,3,4,5,6,7,8,9].sort((a,b)=>c[b]-c[a]);
+ const top=order[0], second=order[1], total=arr.length;
+ return {digit:top,count:c[top],total,frequency:total?c[top]/total:0,second,secondFrequency:total?c[second]/total:0,lead:total?(c[top]-c[second])/total:0,counts:c,order};
+}
 function runBacktest(){
- const w=+$("window").value;
- if(ticks.length<=w){$("btStatus").textContent=`Need more than ${w} ticks. Current sample: ${ticks.length}.`;$("btResults").style.display="none";return}
- let wins=0,losses=0,rows=[];
- for(let i=w;i<ticks.length;i++){
-   const history=ticks.slice(i-w,i), actual=ticks[i].digit, pick=mostFrequent(history);
-   const win=pick.digit===actual;if(win)wins++;else losses++;
-   if(rows.length<100)rows.push({n:i-w+1,pred:pick.digit,actual,result:win?"WIN":"LOSS",freq:`${pick.count}/${w} (${(pick.count/w*100).toFixed(1)}%)`});
+ const primary=+$('window').value;
+ const minLead=+$('minLead').value;
+ const minFreq=+$('minFreq').value;
+ const needAgreement=+$('agreement').value;
+ const windows=[25,50,100,250];
+ const maxW=Math.max(primary, ...windows);
+ if(ticks.length<=maxW){$('btStatus').textContent=`Need more than ${maxW} ticks. Current sample: ${ticks.length}.`;$('btResults').style.display='none';return}
+ let wins=0,losses=0,skipped=0,rows=[];
+ for(let i=maxW;i<ticks.length;i++){
+   const stats={};
+   windows.forEach(w=>stats[w]=windowStats(ticks.slice(i-w,i)));
+   const p=stats[primary];
+   const countsByDigit=Array(10).fill(0);
+   windows.forEach(w=>countsByDigit[stats[w].digit]++);
+   const agreement=countsByDigit[p.digit];
+   const qualifies=p.frequency>=minFreq && p.lead>=minLead && agreement>=needAgreement;
+   if(!qualifies){skipped++;continue}
+   const actual=ticks[i].digit, win=p.digit===actual;
+   if(win)wins++;else losses++;
+   if(rows.length<150)rows.push({n:i-maxW+1,pred:p.digit,actual,result:win?'WIN':'LOSS',freq:`${p.count}/${primary} (${(p.frequency*100).toFixed(1)}%)`,lead:(p.lead*100).toFixed(1)+'%',agreement:`${agreement}/4`});
  }
- const predictions=wins+losses,rate=predictions?wins/predictions*100:0;
- $("btPredictions").textContent=predictions;$("btWins").textContent=wins;$("btLosses").textContent=losses;$("btRate").textContent=rate.toFixed(2)+"%";
- $("btDetail").textContent=`${symbol}: ${predictions} walk-forward predictions using a ${w}-tick frequency window. Random 10-digit baseline is about 10%, before considering contract payout and fees.`;
- $("btLog").innerHTML=rows.map(r=>`<tr><td>${r.n}</td><td><strong>${r.pred}</strong></td><td>${r.actual}</td><td class="${r.result==="WIN"?"win":"loss"}">${r.result}</td><td>${r.freq}</td></tr>`).join("");
- $("btStatus").textContent=`Backtest complete — ${predictions} predictions.`;$("btResults").style.display="block";
+ const signals=wins+losses, totalEvaluated=ticks.length-maxW, rate=signals?wins/signals*100:0, coverage=totalEvaluated?signals/totalEvaluated*100:0, lift=rate-10;
+ $('btPredictions').textContent=signals;$('btWins').textContent=wins;$('btLosses').textContent=losses;$('btRate').textContent=rate.toFixed(2)+'%';
+ $('btSkipped').textContent=skipped;$('btCoverage').textContent=coverage.toFixed(2)+'%';$('btLift').textContent=(lift>=0?'+':'')+lift.toFixed(2)+' pp';
+ $('btDetail').textContent=`${symbol}: ${signals} qualified Matches signals from ${totalEvaluated} possible prediction points. Primary window ${primary}, minimum frequency ${(minFreq*100).toFixed(0)}%, minimum lead ${(minLead*100).toFixed(0)} pp, agreement ${needAgreement}/4. Random 10-digit baseline is about 10% before payout/fees.`;
+ $('btLog').innerHTML=rows.map(r=>`<tr><td>${r.n}</td><td><strong>${r.pred}</strong></td><td>${r.actual}</td><td class="${r.result==='WIN'?'win':'loss'}">${r.result}</td><td>${r.freq}</td><td>${r.lead}</td><td>${r.agreement}</td></tr>`).join('');
+ $('btStatus').textContent=`Confidence backtest complete — ${signals} signals, ${skipped} skipped.`;$('btResults').style.display='block';
 }
 function send(o){if(!ws||ws.readyState!==1)throw Error("WebSocket is not open");ws.send(JSON.stringify(o))}
 function start(){
