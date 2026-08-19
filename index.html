@@ -2,266 +2,66 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Deriv Digit Analyzer — Rolling Walk-Forward v9.0</title>
+<title>Deriv Digit Analyzer — Best Match Scanner v10</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}h2{margin:0 0 6px}.muted,.small{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button,input{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px;box-sizing:border-box}button{cursor:pointer;background:#111827;color:#fff}.secondary{background:#344054}.scan{background:#175cd3}button:disabled{opacity:.55;cursor:not-allowed}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}.win,.pass{font-weight:700}.loss,.fail{font-weight:700}.rank1{font-weight:700}.tableWrap{overflow-x:auto}.error{background:#fff0f0}.good{background:#eefbf3}@media(max-width:700px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}th,td{font-size:12px}}
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}h2{margin:0 0 6px}.muted,.small{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button,input{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px;box-sizing:border-box}button{cursor:pointer;background:#111827;color:#fff}.scan{background:#175cd3}button:disabled{opacity:.55;cursor:not-allowed}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.heroBox{border:1px solid #d9dee8;border-radius:12px;padding:14px}.heroBox .label{font-size:12px;color:#667085}.heroBox .value{font-size:24px;font-weight:700;margin-top:6px}.heroBox.highlight{border:2px solid #175cd3;background:#f5f9ff}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.tableWrap{overflow-x:auto}.good{background:#eefbf3}.warn{background:#fff7e6;padding:12px;border-radius:9px;line-height:1.45}.bad{background:#fff0f0}.rank1{font-weight:700}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}@media(max-width:700px){.controls{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><div class="wrap">
-<div class="card"><h1>Deriv Digit Probability Analyzer</h1><div class="muted">Read-only market-data analyzer. No login and no trades.</div>
-<div class="controls" style="margin-top:12px"><div><label>Symbol</label><select id="symbol"><option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ25V">Volatility 25 (1s)</option><option value="1HZ50V" selected>Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option></select></div><div><label>Sample size</label><select id="count"><option value="250">250 ticks</option><option value="500">500 ticks</option><option value="1000" selected>1000 ticks</option><option value="2500">2500 ticks</option><option value="5000">5000 ticks</option></select></div></div>
-<button id="connect" style="margin-top:10px">Connect / Analyze</button><div id="status" class="status">Not connected.</div></div>
-<div class="card"><div class="muted">Highest observed frequency</div><div id="best" class="best">—</div><div id="summary" class="muted">Waiting for tick data.</div></div>
-<div class="card"><h3>Digits 0–9</h3><div id="digits" class="grid"></div></div>
-
-<div class="card"><h2>Matches Backtest</h2><div class="muted">Walk-forward research. Only ticks before each prediction are used. Weak setups are skipped instead of forcing a Matches prediction.</div>
-<div class="controls" style="margin-top:12px"><div><label>Primary window</label><select id="window"><option value="25">25 previous ticks</option><option value="50">50 previous ticks</option><option value="100" selected>100 previous ticks</option><option value="250">250 previous ticks</option></select></div><div><label>Minimum lead over 2nd digit</label><select id="minLead"><option value="0.02">2 percentage points</option><option value="0.03" selected>3 percentage points</option><option value="0.05">5 percentage points</option><option value="0.08">8 percentage points</option></select></div><div><label>Minimum leading frequency</label><select id="minFreq"><option value="0.12">12%</option><option value="0.15" selected>15%</option><option value="0.18">18%</option><option value="0.20">20%</option></select></div><div><label>Multi-window agreement</label><select id="agreement"><option value="2">2 of 4 windows</option><option value="3" selected>3 of 4 windows</option><option value="4">4 of 4 windows</option></select></div></div>
-<div class="small" style="margin-top:10px">The primary window must meet the frequency + lead thresholds, and the selected number of 25/50/100/250-tick windows must agree on the same digit.</div><button id="backtest" class="secondary" style="margin-top:10px">Run Confidence Matches Backtest</button><div id="btStatus" class="status">Backtest not run.</div>
-<div id="btResults" style="margin-top:12px;display:none"><div class="results"><div class="metric"><div class="small">Signals</div><div id="btPredictions" class="value">—</div></div><div class="metric"><div class="small">Wins</div><div id="btWins" class="value">—</div></div><div class="metric"><div class="small">Losses</div><div id="btLosses" class="value">—</div></div><div class="metric"><div class="small">Win rate</div><div id="btRate" class="value">—</div></div><div class="metric"><div class="small">Skipped</div><div id="btSkipped" class="value">—</div></div><div class="metric"><div class="small">Coverage</div><div id="btCoverage" class="value">—</div></div><div class="metric"><div class="small">Random baseline</div><div class="value">10%</div></div><div class="metric"><div class="small">Win-rate lift</div><div id="btLift" class="value">—</div></div></div><div id="btDetail" class="muted" style="margin-top:10px"></div><h3>Confidence prediction log</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Primary freq.</th><th>Lead</th><th>Agreement</th></tr></thead><tbody id="btLog"></tbody></table></div></div></div>
-
+<div class="card">
+<h1>Deriv Digit Analyzer — Best Match Scanner v10</h1>
+<div class="muted">Research-only scanner for Deriv 1-second Volatility Indices. It compares all five indices, identifies the strongest research candidate, and gives the current digit with the highest observed frequency when the confidence rules qualify.</div>
+<div class="controls" style="margin-top:12px">
+<div><label>History per index</label><select id="history"><option value="3000">3,000 ticks</option><option value="5000" selected>5,000 ticks</option><option value="10000">10,000 ticks</option></select></div>
+<div><label>Minimum OOS signals</label><select id="minSignals"><option value="20">20 signals</option><option value="30" selected>30 signals</option><option value="50">50 signals</option></select></div>
+</div>
+<button id="scan" class="scan" style="margin-top:10px">Find Best Index + Digit</button>
+<div id="status" class="status">Ready. Public market data does not require an API token.</div>
+</div>
 
 <div class="card">
-  <h2>Deriv API Connection</h2>
-  <div class="muted">
-    Optional authenticated mode. Enter your Deriv Personal Access Token (PAT) and App ID only on this page.
-    The token is kept in memory for this browser session and is never written into this HTML file or GitHub.
-  </div>
-  <div class="controls" style="margin-top:12px">
-    <div>
-      <label>Deriv App ID</label>
-      <input id="apiAppId" type="text" autocomplete="off" placeholder="Your Deriv App ID"
-        style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd3df;border-radius:9px;font-size:15px">
-    </div>
-    <div>
-      <label>Personal Access Token (PAT)</label>
-      <input id="apiToken" type="password" autocomplete="off" placeholder="Paste PAT here"
-        style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd3df;border-radius:9px;font-size:15px">
-    </div>
-    <div>
-      <label>Account</label>
-      <select id="apiAccount">
-        <option value="">Load accounts first</option>
-      </select>
-    </div>
-    <div>
-      <label>API mode</label>
-      <select id="apiMode">
-        <option value="public" selected>Public market data</option>
-        <option value="authenticated">Authenticated with my PAT</option>
-      </select>
-    </div>
-  </div>
-  <div class="controls" style="margin-top:10px">
-    <button id="loadAccounts" class="secondary">Load My Deriv Accounts</button>
-    <button id="clearApi" class="secondary">Clear Token / Disconnect</button>
-  </div>
-  <div id="apiStatus" class="status">Public mode is active. No token is required for market-data-only requests.</div>
-  <div class="small" style="margin-top:6px">
-    Authenticated mode uses Deriv's REST OTP flow to obtain a short-lived authenticated WebSocket URL for the selected account.
-    Your PAT is not saved in localStorage or embedded in the page.
-  </div>
+<h2>Best Match Recommendation</h2>
+<div class="hero">
+<div class="heroBox highlight"><div class="label">BEST SYNTHETIC INDEX</div><div id="bestIndex" class="value">—</div></div>
+<div class="heroBox"><div class="label">DIGIT TO USE</div><div id="bestDigit" class="value">—</div></div>
+<div class="heroBox"><div class="label">HIGHEST CURRENT %</div><div id="bestPct" class="value">—</div></div>
+<div class="heroBox"><div class="label">OOS WIN RATE</div><div id="bestOos" class="value">—</div></div>
 </div>
-<div class="card"><h2>Automatic Synthetic-Index Scanner — Rolling Walk-Forward v9.0</h2><div class="muted">Uses the same fixed Matches confidence rules across unseen test folds. Historical data is downloaded in safe 1,000-tick chunks using Deriv's documented public market-data WebSocket protocol. Each API request opens its own socket and sends only after onopen.</div>
-<div class="controls" style="margin-top:12px"><div><label>Total scanner history</label><select id="scanCount"><option value="5000">5,000 ticks</option><option value="10000" selected>10,000 ticks</option><option value="15000">15,000 ticks</option></select></div><div><label>Training window</label><select id="trainSize"><option value="1500" selected>1,500 ticks</option><option value="2000">2,000 ticks</option><option value="3000">3,000 ticks</option></select></div><div><label>Test window per fold</label><select id="testSize"><option value="500" selected>500 ticks</option><option value="750">750 ticks</option><option value="1000">1,000 ticks</option></select></div><div><label>Minimum signals per fold</label><select id="minFoldSignals"><option value="5">5 signals</option><option value="10" selected>10 signals</option><option value="15">15 signals</option></select></div><div><label>Minimum total OOS signals</label><select id="minTotalSignals"><option value="50">50 signals</option><option value="75" selected>75 signals</option><option value="100">100 signals</option></select></div><div><label>Required folds above 10%</label><select id="requiredFolds"><option value="0.50">50% of usable folds</option><option value="0.60" selected>60% of usable folds</option><option value="0.70">70% of usable folds</option></select></div></div>
-<button id="scan" class="scan" style="margin-top:10px">Run Rolling Walk-Forward Scan</button><div id="scanStatus" class="status">Scanner not run.</div><div class="small" style="margin-top:6px">v9 supports public market data or authenticated PAT mode. Authenticated mode uses a fresh OTP WebSocket URL for each API request.</div>
-<div id="scanResults" style="margin-top:12px;display:none"><div class="small" style="margin-bottom:8px"><b>Research gate:</b> enough total OOS signals, overall win rate above 10%, and the required share of usable folds above 10%. No candidate is selected just because it ranks highest.</div><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>OOS wins</th><th>OOS rate</th><th>Coverage</th><th>Folds</th><th>Above 10%</th><th>Max loss streak</th><th>Max DD</th><th>Score</th><th>Gate</th></tr></thead><tbody id="scanLog"></tbody></table></div><h3 style="margin-top:16px">Fold-by-fold validation</h3><div class="tableWrap"><table><thead><tr><th>Fold</th><th>Test ticks</th><th>Signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead><tbody id="foldLog"></tbody></table></div><button id="stability" class="secondary" style="margin-top:10px">Run Fresh Holdout on Selected Index</button><div id="stabilityStatus" class="status">Fresh holdout not run.</div><div id="stabilityResults" style="margin-top:12px;display:none"><div class="results"><div class="metric"><div class="small">Selected index</div><div id="stIndex" class="value">—</div></div><div class="metric"><div class="small">Fresh signals</div><div id="stSignals" class="value">—</div></div><div class="metric"><div class="small">Fresh wins</div><div id="stWins" class="value">—</div></div><div class="metric"><div class="small">Fresh rate</div><div id="stRate" class="value">—</div></div><div class="metric"><div class="small">Coverage</div><div id="stCoverage" class="value">—</div></div><div class="metric"><div class="small">Max loss streak</div><div id="stLossStreak" class="value">—</div></div><div class="metric"><div class="small">Max drawdown</div><div id="stDrawdown" class="value">—</div></div><div class="metric"><div class="small">Final decision</div><div id="stDecision" class="value">—</div></div></div><div id="stabilityDetail" class="muted" style="margin-top:10px"></div></div></div></div>
-<div class="card"><h3>Recent sample</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div></div>
-<div class="card warn"><strong>Important:</strong> This is research software, not a guarantee of profit. A Matches win requires the predicted digit to equal the next tick's last digit. The confidence filter can skip weak setups, but it cannot create a guaranteed edge. Payouts, fees and execution effects are not included.</div>
+<div id="recommendation" class="status" style="margin-top:12px">Run the scanner to calculate the recommendation.</div>
+</div>
+
+<div class="card"><h2>Index Comparison</h2><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>OOS wins</th><th>OOS rate</th><th>Coverage</th><th>Current digit</th><th>Current %</th><th>Lead</th><th>Agreement</th><th>Status</th></tr></thead><tbody id="results"></tbody></table></div></div>
+
+<div class="card"><h2>Current Digit Distribution — Selected Index</h2><div id="selectedTitle" class="muted">No index selected.</div><div id="digits" class="grid" style="margin-top:10px"></div></div>
+
+<div class="card"><h2>How the recommendation works</h2><div class="small">1. Historical ticks are downloaded independently for all five indices. 2. The last 30% is treated as unseen out-of-sample data. 3. A Matches signal requires the primary 100-tick window to have at least 15% frequency, at least a 3-point lead over the second digit, and agreement from at least 3 of the 25/50/100/250-tick windows. 4. The displayed digit is the current consensus digit. 5. The scanner will say <b>NO QUALIFIED SIGNAL</b> rather than force a trade when the evidence is weak.</div></div>
+
+<div class="card warn"><strong>Important:</strong> A high historical percentage is not a guarantee of the next tick. Digit outcomes can be highly variable, and this tool does not promise an 80% win rate or guaranteed profit. Use the result as research and verify it on fresh data before risking money.</div>
 </div>
 <script>
-const DATA_WS_CANDIDATES=[
-  "wss://api.derivws.com/trading/v1/options/ws/public",
-  "wss://ws.binaryws.com/websockets/v3"
+const SYMBOLS=[
+{id:"1HZ10V",name:"Volatility 10 (1s)"},
+{id:"1HZ25V",name:"Volatility 25 (1s)"},
+{id:"1HZ50V",name:"Volatility 50 (1s)"},
+{id:"1HZ75V",name:"Volatility 75 (1s)"},
+{id:"1HZ100V",name:"Volatility 100 (1s)"}
 ];
-const SYMBOLS=[{id:"1HZ10V",name:"Volatility 10 (1s)"},{id:"1HZ25V",name:"Volatility 25 (1s)"},{id:"1HZ50V",name:"Volatility 50 (1s)"},{id:"1HZ75V",name:"Volatility 75 (1s)"},{id:"1HZ100V",name:"Volatility 100 (1s)"}];
-let ws=null,ticks=[],symbol="1HZ50V",count=1000,reqSeq=10,scannerRunning=false,activeEndpoint=DATA_WS_CANDIDATES[0];window.selectedRolling=null;
+const WS_URL="wss://api.derivws.com/trading/v1/options/ws/public";
 const $=id=>document.getElementById(id);
-
-const API_BASE="https://api.derivws.com";
-let apiAuth={appId:"",token:"",accountId:"",wsUrl:""};
-let apiBusy=false;
-
-function apiMode(){
-  return $("apiMode")?.value==="authenticated";
-}
-function setApiStatus(msg,ok=false){
-  const el=$("apiStatus");
-  if(!el)return;
-  el.textContent=msg;
-  el.style.background=ok?"#eefbf3":"#eef2ff";
-}
-function clearApiCredentials(){
-  apiAuth={appId:"",token:"",accountId:"",wsUrl:""};
-  if($("apiToken"))$("apiToken").value="";
-  if($("apiAppId"))$("apiAppId").value="";
-  if($("apiAccount"))$("apiAccount").innerHTML='<option value="">Load accounts first</option>';
-  if($("apiMode"))$("apiMode").value="public";
-  setApiStatus("Credentials cleared. Public market-data mode is active.");
-}
-async function apiFetch(path,options={}){
-  const appId=$("apiAppId")?.value.trim();
-  const token=$("apiToken")?.value.trim();
-  if(!appId||!token)throw new Error("Enter both your Deriv App ID and Personal Access Token.");
-  const headers={
-    "Deriv-App-ID":appId,
-    "Authorization":`Bearer ${token}`,
-    ...(options.headers||{})
-  };
-  const r=await fetch(API_BASE+path,{...options,headers});
-  let body=null;
-  try{body=await r.json()}catch(_){}
-  if(!r.ok){
-    const msg=body?.errors?.[0]?.message||body?.message||`HTTP ${r.status}`;
-    throw new Error(`Deriv API rejected the request: ${msg}`);
-  }
-  return body;
-}
-async function loadAccounts(){
-  if(apiBusy)return;
-  apiBusy=true;
-  try{
-    setApiStatus("Checking your PAT and loading Deriv accounts…");
-    const body=await apiFetch("/trading/v1/options/accounts",{method:"GET"});
-    const raw=Array.isArray(body?.data)?body.data:
-      Array.isArray(body?.accounts)?body.accounts:
-      Array.isArray(body)?body:[];
-    const accounts=raw.map(a=>({
-      id:a.account_id||a.accountId||a.id||a.loginid||"",
-      type:a.account_type||a.type||"",
-      currency:a.currency||""
-    })).filter(a=>a.id);
-    const sel=$("apiAccount");
-    sel.innerHTML="";
-    if(!accounts.length)throw new Error("Your PAT was accepted, but no Options accounts were returned.");
-    accounts.forEach((a,i)=>{
-      const o=document.createElement("option");
-      o.value=a.id;
-      o.textContent=`${a.id}${a.type?` — ${a.type}`:""}${a.currency?` — ${a.currency}`:""}`;
-      sel.appendChild(o);
-    });
-    apiAuth.appId=$("apiAppId").value.trim();
-    apiAuth.token=$("apiToken").value.trim();
-    apiAuth.accountId=sel.value;
-    setApiStatus(`Authenticated successfully. ${accounts.length} account(s) loaded. Select an account and switch API mode to authenticated.`,true);
-  }catch(e){
-    setApiStatus(`API connection failed: ${e.message}`);
-  }finally{apiBusy=false}
-}
-async function getAuthenticatedWsUrl(){
-  const appId=$("apiAppId")?.value.trim();
-  const token=$("apiToken")?.value.trim();
-  const accountId=$("apiAccount")?.value;
-  if(!appId||!token||!accountId){
-    throw new Error("Authenticated mode requires App ID, PAT, and a selected account. Click “Load My Deriv Accounts” first.");
-  }
-  apiAuth={appId,token,accountId,wsUrl:""};
-  const body=await apiFetch(`/trading/v1/options/accounts/${encodeURIComponent(accountId)}/otp`,{method:"POST"});
-  const url=body?.data?.url||body?.url;
-  if(!url)throw new Error("Deriv did not return an authenticated WebSocket URL.");
-  return url;
-}
-
-function digit(q,pipSize){const p=Number.isFinite(Number(pipSize))?Number(pipSize):2;const s=Number(q).toFixed(p);return s?s[s.length-1]*1:null}
-function render(){const c=Array(10).fill(0);ticks.forEach(x=>{if(x.digit!=null)c[x.digit]++});const n=ticks.length;let b=0;for(let d=1;d<10;d++)if(c[d]>c[b])b=d;$('best').textContent=n?`Digit ${b} — ${(c[b]/n*100).toFixed(2)}%`:'—';$('summary').textContent=n?`${n} ticks analyzed. Highest observed frequency: digit ${b}.`:'Waiting for tick data.';$('digits').innerHTML=c.map((v,d)=>{const p=n?v/n*100:0;return `<div class="digit ${n&&d===b?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${p.toFixed(2)}%</div><div class="muted">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(p*2,100)}%"></div></div></div>`}).join('');$('recent').innerHTML=ticks.slice(-20).reverse().map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.digit}</strong></td><td>${x.quote}</td><td>${new Date(x.epoch*1000).toLocaleTimeString()}</td></tr>`).join('')}
-function windowStats(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});const order=[0,1,2,3,4,5,6,7,8,9].sort((a,b)=>c[b]-c[a]);const top=order[0],second=order[1],total=arr.length;return{digit:top,count:c[top],total,frequency:total?c[top]/total:0,second,secondFrequency:total?c[second]/total:0,lead:total?(c[top]-c[second])/total:0}}
-function confidencePoint(data,i,primary,minLead,minFreq,needAgreement){const windows=[25,50,100,250],stats={};windows.forEach(w=>stats[w]=windowStats(data.slice(i-w,i)));const p=stats[primary],counts=Array(10).fill(0);windows.forEach(w=>counts[stats[w].digit]++);return{qualifies:p.frequency>=minFreq&&p.lead>=minLead&&counts[p.digit]>=needAgreement,pred:p.digit,freq:p.frequency,lead:p.lead,agreement:counts[p.digit]}}
-function settings(){return{primary:+$('window').value,minLead:+$('minLead').value,minFreq:+$('minFreq').value,needAgreement:+$('agreement').value,history:+$('scanCount').value,trainSize:+$('trainSize').value,testSize:+$('testSize').value,minFoldSignals:+$('minFoldSignals').value,minTotalSignals:+$('minTotalSignals').value,requiredFolds:+$('requiredFolds').value}}
-function evaluateRange(data,start,end,s){let wins=0,signals=0,skipped=0,lossStreak=0,maxLossStreak=0,equity=0,peak=0,maxDD=0;const first=Math.max(250,start);for(let i=first;i<end;i++){const p=confidencePoint(data,i,s.primary,s.minLead,s.minFreq,s.needAgreement);if(!p.qualifies){skipped++;continue}signals++;const win=p.pred===data[i].digit;if(win){wins++;lossStreak=0;equity++}else{lossStreak++;maxLossStreak=Math.max(maxLossStreak,lossStreak);equity--}peak=Math.max(peak,equity);maxDD=Math.max(maxDD,peak-equity)}const points=Math.max(0,end-first),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;return{start:first,end,points,signals,wins,losses:signals-wins,rate,coverage,skipped,maxLossStreak,maxDD}}
-function rollingValidation(data,s){const folds=[];let testStart=s.trainSize,fold=1;while(testStart+s.testSize<=data.length){const r=evaluateRange(data,testStart,testStart+s.testSize,s);folds.push({...r,fold});testStart+=s.testSize;fold++}const usable=folds.filter(f=>f.signals>=s.minFoldSignals),totalSignals=usable.reduce((a,f)=>a+f.signals,0),totalWins=usable.reduce((a,f)=>a+f.wins,0),totalPoints=usable.reduce((a,f)=>a+f.points,0),rate=totalSignals?totalWins/totalSignals*100:0,coverage=totalPoints?totalSignals/totalPoints*100:0,above=usable.filter(f=>f.rate>10).length,share=usable.length?above/usable.length:0,maxLossStreak=usable.reduce((m,f)=>Math.max(m,f.maxLossStreak),0),maxDD=usable.reduce((m,f)=>Math.max(m,f.maxDD),0);const gate=totalSignals>=s.minTotalSignals&&rate>10&&usable.length>=3&&share>=s.requiredFolds;const edge=Math.max(0,Math.min(1,(rate-10)/10)),sample=Math.min(1,totalSignals/150),coverageScore=Math.min(1,coverage/25),streakPenalty=Math.max(0,1-Math.min(maxLossStreak,20)/20),ddPenalty=Math.max(0,1-Math.min(maxDD,50)/50),score=(edge*.35+share*.25+sample*.15+coverageScore*.10+streakPenalty*.075+ddPenalty*.075)*100;return{folds,usable,totalSignals,totalWins,rate,coverage,above,share,maxLossStreak,maxDD,gate,score}}
-
-// One request = one fresh socket. This avoids the v5/v6 bug where a socket was already OPEN
-// before onopen was assigned, so the request was never sent. Legacy public market-data API
-// also does not accept subscribe:0; we simply omit subscribe for one-shot history requests.
-async function derivRequest(payload, expectedType, timeoutMs=20000){
-  if(apiMode()){
-    const endpoint=await getAuthenticatedWsUrl();
-    try{
-      const data=await derivRequestOnEndpoint(endpoint,payload,expectedType,timeoutMs);
-      activeEndpoint="authenticated WebSocket";
-      return data;
-    }catch(e){
-      throw new Error(`Authenticated WebSocket request failed: ${e.message}`);
-    }
-  }
-
-  let lastError=null;
-  for(const endpoint of DATA_WS_CANDIDATES){
-    try{
-      const data=await derivRequestOnEndpoint(endpoint,payload,expectedType,timeoutMs);
-      activeEndpoint=endpoint;
-      return data;
-    }catch(e){lastError=e}
-  }
-  throw new Error(
-    `Unable to reach Deriv market-data WebSocket. Tried ${DATA_WS_CANDIDATES.length} public endpoints. ` +
-    `${lastError?.message||"Unknown connection error"}`
-  );
-}
-function derivRequestOnEndpoint(endpoint,payload,expectedType,timeoutMs){
-  return new Promise((resolve,reject)=>{
-    let sock=null,done=false,timer=null;
-    const reqId=++reqSeq;
-    const req={...payload,req_id:reqId};
-
-    const finish=(err,data)=>{
-      if(done)return;
-      done=true;
-      if(timer)clearTimeout(timer);
-      try{if(sock)sock.close()}catch(_){}
-      err?reject(err):resolve(data);
-    };
-
-    try{sock=new WebSocket(endpoint)}
-    catch(e){finish(new Error(`Browser could not open ${endpoint}: ${e.message}`));return}
-
-    timer=setTimeout(()=>finish(new Error(
-      `Connection to ${endpoint} timed out after ${timeoutMs/1000}s.`
-    )),timeoutMs);
-
-    sock.onopen=()=>{
-      try{sock.send(JSON.stringify(req))}
-      catch(e){finish(new Error(`Could not send request: ${e.message}`))}
-    };
-    sock.onmessage=ev=>{
-      let d;
-      try{d=JSON.parse(ev.data)}catch(_){return}
-      if(d.req_id!==undefined && Number(d.req_id)!==reqId)return;
-      if(d.error){
-        finish(new Error(`Deriv API error ${d.error.code||"UNKNOWN"} — ${d.error.message||"Unknown error"}`));
-        return;
-      }
-      if(d.msg_type===expectedType)finish(null,d);
-    };
-    sock.onerror=()=>finish(new Error(`WebSocket connection failed at ${endpoint}.`));
-    sock.onclose=ev=>{
-      if(!done)finish(new Error(
-        `WebSocket closed before the ${expectedType} response ` +
-        `(code ${ev.code}${ev.reason?`, ${ev.reason}`:""}).`
-      ));
-    };
-  });
-}
-async function verifySymbols(){const d=await derivRequest({active_symbols:'brief'},'active_symbols',15000);const ids=new Set((d.active_symbols||[]).map(x=>x.symbol||x.underlying_symbol).filter(Boolean));const missing=SYMBOLS.filter(x=>!ids.has(x.id)).map(x=>x.id);return{ids,missing}}
-async function requestHistory(sym,n,endValue){const d=await derivRequest({ticks_history:sym,count:n,end:endValue,style:'ticks'},'history',20000);const prices=Array.isArray(d.history?.prices)?d.history.prices:[],times=Array.isArray(d.history?.times)?d.history.times:[],pip=Number(d.pip_size??2);const data=prices.map((q,i)=>({quote:q,epoch:times[i],digit:digit(q,pip)})).filter(x=>Number.isFinite(Number(x.epoch))&&x.digit!=null);if(!data.length)throw new Error(`Deriv returned no usable history for ${sym}.`);return data}
-async function fetchHistory(sym,target){const chunk=1000;let all=[],end='latest',loops=0;while(all.length<target&&loops<Math.ceil(target/chunk)+3){loops++;const need=Math.min(chunk,target-all.length);const part=await requestHistory(sym,need,end);if(!part.length)break;all=part.concat(all);const oldest=Math.min(...part.map(x=>Number(x.epoch)).filter(Number.isFinite));if(!Number.isFinite(oldest)||part.length<need)break;end=String(Math.max(0,Math.floor(oldest)-1));await new Promise(r=>setTimeout(r,100))}const seen=new Set();all=all.filter(x=>{const k=`${x.epoch}|${x.quote}`;if(seen.has(k))return false;seen.add(k);return true});all.sort((a,b)=>Number(a.epoch)-Number(b.epoch));if(all.length>target)all=all.slice(-target);if(all.length<Math.min(target,500))throw new Error(`Only ${all.length} usable ticks returned; need more history.`);return all}
-async function scanAll(){if(scannerRunning)return;scannerRunning=true;$("scan").disabled=true;$("stability").disabled=true;$("scanResults").style.display="none";const s=settings(),results=[];try{const v=await verifySymbols();if(v.missing.length){throw new Error(`Required symbols unavailable: ${v.missing.join(", ")}`)}$("scanStatus").textContent=`Deriv connection OK via ${activeEndpoint}. All 5 synthetic indices are available. Starting scan…`;}catch(e){$("scanStatus").textContent=`Rolling scan stopped before data download: ${e.message}`;$('scan').disabled=false;$('stability').disabled=false;scannerRunning=false;return}for(let i=0;i<SYMBOLS.length;i++){const x=SYMBOLS[i];$("scanStatus").textContent=`Downloading ${s.history.toLocaleString()} ticks for ${x.name} — ${i+1}/${SYMBOLS.length}…`;try{const data=await fetchHistory(x.id,s.history);if(data.length<s.trainSize+s.testSize*3+250)throw new Error(`Only ${data.length} ticks available for the selected rolling configuration.`);results.push({...x,...rollingValidation(data,s),error:""})}catch(e){results.push({...x,error:e.message||"Unable to load data",gate:false,score:0,totalSignals:0,totalWins:0,rate:0,coverage:0,usable:[],folds:[],above:0,share:0,maxLossStreak:0,maxDD:0})}}results.sort((a,b)=>{if(a.error&&!b.error)return 1;if(!a.error&&b.error)return -1;if(b.gate!==a.gate)return b.gate?1:-1;return b.score-a.score});$("scanLog").innerHTML=results.map((r,i)=>{const gate=r.error?"ERROR":r.gate?"PASS":"HOLD";return `<tr class="${r.error?'error':''}"><td class="${i===0&&!r.error?'rank1':''}">${i+1}</td><td>${r.name}</td><td>${r.error?'—':r.totalSignals}</td><td>${r.error?'—':r.totalWins}</td><td>${r.error?'—':r.rate.toFixed(2)+'%'}</td><td>${r.error?'—':r.coverage.toFixed(1)+'%'}</td><td>${r.error?'—':r.usable.length+'/'+r.folds.length}</td><td>${r.error?'—':r.above+'/'+r.usable.length}</td><td>${r.error?'—':r.maxLossStreak}</td><td>${r.error?'—':r.maxDD.toFixed(0)+'u'}</td><td>${r.error?'—':r.score.toFixed(1)}</td><td class="${r.gate?'pass':'fail'}">${gate}</td></tr>`}).join("");const passing=results.filter(r=>!r.error&&r.gate);window.selectedRolling=passing.length?passing[0]:null;const best=results.find(r=>!r.error);const show=window.selectedRolling||best;if(show){$("foldLog").innerHTML=show.folds.map(f=>`<tr><td>${f.fold}</td><td>${f.points}</td><td>${f.signals}</td><td>${f.wins}</td><td>${f.signals?f.rate.toFixed(2)+'%':'—'}</td><td>${f.coverage.toFixed(1)}%</td><td>${f.signals?((f.rate-10>=0?'+':'')+(f.rate-10).toFixed(2)+' pp'):'—'}</td><td class="${f.signals>=s.minFoldSignals&&f.rate>10?'pass':'fail'}">${f.signals>=s.minFoldSignals?(f.rate>10?'ABOVE':'BELOW'):'LOW SAMPLE'}</td></tr>`).join("")}else $("foldLog").innerHTML="";if(passing.length)$("scanStatus").textContent=`Rolling scan complete — ${passing[0].name} passed the research gate.`;else{const err=results.find(r=>r.error);$("scanStatus").textContent=err?`Rolling scan complete — 0 indexes passed. First data error: ${err.name}: ${err.error}`:`Rolling scan complete — 0 indexes passed the research gate.`}$("stabilityStatus").textContent=passing.length?`Selected automatically: ${passing[0].name}. Run the fresh holdout before considering any trade.`:"No index passed the rolling gate. Do not select one just because it ranked highest.";$("scanResults").style.display="block";$("scan").disabled=false;$("stability").disabled=false;scannerRunning=false}
-async function runStability(){if(scannerRunning)return;const top=window.selectedRolling;if(!top){$("stabilityStatus").textContent="No index passed the rolling gate. Do not select one just because it ranked highest.";return}const s=settings();scannerRunning=true;$("stability").disabled=true;$("scan").disabled=true;$("stabilityResults").style.display="none";$("stabilityStatus").textContent=`Running fresh holdout on ${top.name}…`;try{const fresh=await fetchHistory(top.id,s.history),holdoutSize=Math.max(s.testSize*2,Math.floor(fresh.length*.20)),conf=evaluateRange(fresh,fresh.length-holdoutSize,fresh.length,s),pass=conf.signals>=Math.max(s.minFoldSignals*2,20)&&conf.rate>10;$("stIndex").textContent=top.name.replace("Volatility ","V").replace(" (1s)","");$("stSignals").textContent=conf.signals;$("stWins").textContent=conf.wins;$("stRate").textContent=conf.rate.toFixed(2)+"%";$("stCoverage").textContent=conf.coverage.toFixed(1)+"%";$("stLossStreak").textContent=conf.maxLossStreak;$("stDrawdown").textContent=conf.maxDD.toFixed(0)+"u";$("stDecision").textContent=pass?"PASS":"HOLD";$("stabilityDetail").textContent=`Fresh holdout used the newest ${holdoutSize.toLocaleString()} ticks of a new ${s.history.toLocaleString()}-tick sample. Required: at least ${Math.max(s.minFoldSignals*2,20)} signals and win rate above 10%.`;$("stabilityStatus").textContent=pass?"Fresh holdout passed. This is still research evidence, not a profit guarantee.":"Fresh holdout failed. Keep the system in NO-TRADE mode.";$("stabilityResults").style.display="block"}catch(e){$("stabilityStatus").textContent=`Fresh holdout failed: ${e.message||"Unable to load data"}`}finally{$("stability").disabled=false;$("scan").disabled=false;scannerRunning=false}}
-async function requestLiveHistory(){const d=await derivRequest({ticks_history:symbol,count,end:'latest',style:'ticks'},'history',20000);const p=Array.isArray(d.history?.prices)?d.history.prices:[],t=Array.isArray(d.history?.times)?d.history.times:[],pip=Number(d.pip_size??2),data=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q,pip)})).filter(x=>x.digit!=null);if(!data.length)throw new Error('Deriv returned no usable history.');return data}
-async function start(){symbol=$("symbol").value;count=+$("count").value;ticks=[];render();$("btResults").style.display="none";$("status").textContent="Connecting to Deriv public market data…";try{ticks=await requestLiveHistory();render();$("status").textContent=`Connected via ${activeEndpoint} — ${ticks.length}/${count} historical ticks loaded.`}catch(e){$("status").textContent=`Deriv connection error: ${e.message}`}}
-function runBacktest(){const primary=+$("window").value,minLead=+$("minLead").value,minFreq=+$("minFreq").value,needAgreement=+$("agreement").value;if(ticks.length<=250){$("btStatus").textContent=`Need more than 250 ticks. Current sample: ${ticks.length}.`;$("btResults").style.display="none";return}let wins=0,losses=0,skipped=0,rows=[];for(let i=250;i<ticks.length;i++){const p=confidencePoint(ticks,i,primary,minLead,minFreq,needAgreement);if(!p.qualifies){skipped++;continue}const actual=ticks[i].digit,win=p.pred===actual;if(win)wins++;else losses++;if(rows.length<150)rows.push({n:i-249,pred:p.pred,actual,result:win?"WIN":"LOSS",freq:`${(p.freq*100).toFixed(1)}%`,lead:`${(p.lead*100).toFixed(1)}%`,agreement:`${p.agreement}/4`})}const signals=wins+losses,total=ticks.length-250,rate=signals?wins/signals*100:0,coverage=total?signals/total*100:0,lift=rate-10;$("btPredictions").textContent=signals;$("btWins").textContent=wins;$("btLosses").textContent=losses;$("btRate").textContent=rate.toFixed(2)+"%";$("btSkipped").textContent=skipped;$("btCoverage").textContent=coverage.toFixed(2)+"%";$("btLift").textContent=(lift>=0?"+":"")+lift.toFixed(2)+" pp";$("btDetail").textContent=`${symbol}: ${signals} qualified signals from ${total} possible prediction points.`;$("btLog").innerHTML=rows.map(r=>`<tr><td>${r.n}</td><td><strong>${r.pred}</strong></td><td>${r.actual}</td><td class="${r.result==='WIN'?'win':'loss'}">${r.result}</td><td>${r.freq}</td><td>${r.lead}</td><td>${r.agreement}</td></tr>`).join("");$("btStatus").textContent=`Confidence backtest complete — ${signals} signals, ${skipped} skipped.`;$("btResults").style.display="block"}
-$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;$("scan").onclick=scanAll;$("stability").onclick=runStability;render();
-
-$("loadAccounts")?.addEventListener("click",loadAccounts);
-$("clearApi")?.addEventListener("click",clearApiCredentials);
-$("apiMode")?.addEventListener("change",()=>{
-  if(apiMode()){
-    setApiStatus("Authenticated mode selected. Load your accounts before running the scanner.");
-  }else{
-    setApiStatus("Public mode is active. No token is required for market-data-only requests.");
-  }
-});
-$("apiAccount")?.addEventListener("change",()=>{
-  apiAuth.accountId=$("apiAccount").value;
-});
-
+function digit(q,pip){const p=Number.isFinite(Number(pip))?Number(pip):2;const s=Number(q).toFixed(p);return s?Number(s[s.length-1]):null}
+function wsRequest(payload,timeout=20000){return new Promise((resolve,reject)=>{let done=false,timer,sock;const finish=(e,d)=>{if(done)return;done=true;clearTimeout(timer);try{sock&&sock.close()}catch(_){}e?reject(e):resolve(d)};try{sock=new WebSocket(WS_URL)}catch(e){finish(e);return}timer=setTimeout(()=>finish(new Error("Deriv WebSocket timed out.")),timeout);sock.onopen=()=>{try{sock.send(JSON.stringify(payload))}catch(e){finish(e)}};sock.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.error){finish(new Error(d.error.message||"Deriv API error"));return}if(d.msg_type===payload.ticks_history?"history":payload.active_symbols?"active_symbols":null)finish(null,d);if(payload.ticks_history&&d.msg_type==="history")finish(null,d);if(payload.active_symbols&&d.msg_type==="active_symbols")finish(null,d)};sock.onerror=()=>finish(new Error("Deriv WebSocket connection failed."));sock.onclose=()=>{if(!done)finish(new Error("Deriv WebSocket closed before the response arrived."))}})}
+async function history(symbol,total){let out=[],end="latest",remaining=total;while(remaining>0){const n=Math.min(1000,remaining);const d=await wsRequest({ticks_history:symbol,end,count:n,style:"ticks",subscribe:0,req_id:Date.now()%1000000});const prices=d.history?.prices||[];const times=d.history?.times||[];if(!prices.length)break;const rows=prices.map((q,i)=>({quote:Number(q),epoch:Number(times[i]),digit:digit(q,d.pip_size)})).filter(x=>Number.isFinite(x.quote)&&x.digit!=null);out=rows.concat(out);remaining-=rows.length;const first=times[0];if(!first||rows.length===0)break;end=String(Number(first)-1);if(rows.length<n)break}return out.slice(-total)}
+function stats(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});const order=[0,1,2,3,4,5,6,7,8,9].sort((a,b)=>c[b]-c[a]);const a=order[0],b=order[1],n=arr.length;return{digit:a,count:c[a],total:n,pct:n?c[a]/n*100:0,second:b,secondPct:n?c[b]/n*100:0,lead:n?(c[a]-c[b])/n*100:0,counts:c}}
+function signalAt(data,i){if(i<250)return null;const windows=[25,50,100,250],s={};windows.forEach(w=>s[w]=stats(data.slice(i-w,i)));const primary=s[100];const agreement=windows.filter(w=>s[w].digit===primary.digit).length;const qualifies=primary.pct>=15&&primary.lead>=3&&agreement>=3;return{qualifies,digit:primary.digit,pct:primary.pct,lead:primary.lead,agreement}}
+function evaluateOOS(data){const start=Math.floor(data.length*.70);let signals=0,wins=0;for(let i=Math.max(250,start);i<data.length;i++){const p=signalAt(data,i);if(!p||!p.qualifies)continue;signals++;if(p.digit===data[i].digit)wins++}const points=Math.max(0,data.length-Math.max(250,start));return{signals,wins,rate:signals?wins/signals*100:0,coverage:points?signals/points*100:0}}
+function renderDigits(data){const s=stats(data);$('digits').innerHTML=s.counts.map((v,d)=>{const pct=data.length?v/data.length*100:0;return `<div class="digit ${d===s.digit?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${pct.toFixed(2)}%</div><div class="small">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(100,pct*2)}%"></div></div></div>`}).join('')}
+function rankScore(r,minSignals){const sample=Math.min(1,r.oos.signals/Math.max(minSignals,1));const edge=Math.max(0,(r.oos.rate-10)/10);const coverage=Math.min(1,r.oos.coverage/25);const current=Math.max(0,(r.current.pct-10)/10);const agreement=r.current.agreement/4;return edge*.45+sample*.20+coverage*.10+current*.15+agreement*.10}
+async function run(){const total=Number($('history').value),minSignals=Number($('minSignals').value);$('scan').disabled=true;$('status').textContent=`Downloading ${total.toLocaleString()} ticks for all five indices…`;$('results').innerHTML="";const rows=[];try{for(const sym of SYMBOLS){$('status').textContent=`Analyzing ${sym.name}…`;let data=[];try{data=await history(sym.id,total)}catch(e){rows.push({sym,error:e.message});continue}if(data.length<300){rows.push({sym,error:`Only ${data.length} ticks returned`});continue}const oos=evaluateOOS(data),current=stats(data.slice(-250)),sig=signalAt(data,data.length);rows.push({sym,data,oos,current,sig,score:rankScore({oos,current:sig||current},minSignals)});}
+const valid=rows.filter(r=>!r.error);valid.sort((a,b)=>b.score-a.score);$('results').innerHTML=rows.map((r,i)=>{if(r.error)return `<tr class="bad"><td>${i+1}</td><td>${r.sym.name}</td><td colspan="9">ERROR: ${r.error}</td></tr>`;const q=r.sig?.qualifies;return `<tr class="${i===0?'rank1':''}"><td>${i+1}</td><td>${r.sym.name}</td><td>${r.oos.signals}</td><td>${r.oos.wins}</td><td>${r.oos.rate.toFixed(2)}%</td><td>${r.oos.coverage.toFixed(1)}%</td><td>${r.sig? r.sig.digit:'—'}</td><td>${r.sig? r.sig.pct.toFixed(2)+'%':'—'}</td><td>${r.sig? r.sig.lead.toFixed(2)+' pp':'—'}</td><td>${r.sig? r.sig.agreement+'/4':'—'}</td><td class="${q?'good':''}">${q?'QUALIFIED':'HOLD'}</td></tr>`}).join('');
+const qualified=valid.filter(r=>r.oos.signals>=minSignals&&r.oos.rate>10&&r.sig?.qualifies);const candidate=(qualified.length?qualified:valid.filter(r=>r.oos.signals>=minSignals&&r.sig?.qualifies)).sort((a,b)=>b.score-a.score)[0];
+if(!candidate){$('bestIndex').textContent='NONE';$('bestDigit').textContent='—';$('bestPct').textContent='—';$('bestOos').textContent='—';$('recommendation').textContent='No index currently meets the full research gate. The scanner will not force a Matches recommendation.';$('recommendation').className='status bad';$('selectedTitle').textContent='No qualified index.';$('digits').innerHTML='';$('status').textContent='Scan complete — no qualified signal.';return}
+$('bestIndex').textContent=candidate.sym.name;$('bestDigit').textContent=candidate.sig.digit;$('bestPct').textContent=candidate.sig.pct.toFixed(2)+'%';$('bestOos').textContent=candidate.oos.rate.toFixed(2)+'%';$('recommendation').textContent=`Current leader: ${candidate.sym.name}. Predicted Matches digit: ${candidate.sig.digit}. Current 250-tick frequency: ${candidate.sig.pct.toFixed(2)}%. OOS research win rate: ${candidate.oos.rate.toFixed(2)}% from ${candidate.oos.signals} signals. Lead ${candidate.sig.lead.toFixed(2)} pp with ${candidate.sig.agreement}/4-window agreement.`;$('recommendation').className='status good';$('selectedTitle').textContent=`${candidate.sym.name} — current digit distribution over the latest 250 ticks`;renderDigits(candidate.data.slice(-250));$('status').textContent=`Scan complete — best qualified candidate: ${candidate.sym.name}.`;
+}catch(e){$('status').textContent=`Scan failed: ${e.message}`;}
+finally{$('scan').disabled=false}}
+$('scan').onclick=run;
 </script></body></html>
