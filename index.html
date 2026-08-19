@@ -45,55 +45,65 @@ const WS_URLS=[
   "wss://ws.binaryws.com/websockets/v3"
 ];
 function lastDigit(quote){const s=String(quote),parts=s.split(".");return parts.length>1?Number(parts[1].slice(-1)):Number(s.slice(-1))}
-async function getHistory(symbol,count){
+async function getAllHistories(indices,count){
   let lastError="WebSocket connection failed";
-  for(const url of WS_URLS){
+  const urls=[
+    `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`,
+    `wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`
+  ];
+
+  for(const url of urls){
     try{
-      const prices=await new Promise((resolve,reject)=>{
+      const histories=await new Promise((resolve,reject)=>{
         let ws,done=false;
+        const received={};
         const timer=setTimeout(()=>{
           if(done)return;
           done=true;
           try{ws.close()}catch(e){}
           reject(new Error("Deriv request timed out"));
-        },30000);
+        },45000);
+
         try{ws=new WebSocket(url)}catch(e){
           clearTimeout(timer);
           reject(new Error("Browser could not open Deriv WebSocket"));
           return;
         }
+
         ws.onopen=()=>{
-          ws.send(JSON.stringify({
-            ticks_history:symbol,
-            count:count,
-            end:"latest",
-            style:"ticks",
-            subscribe:0
-          }));
+          indices.forEach((index,i)=>{
+            ws.send(JSON.stringify({
+              ticks_history:index.symbol,
+              count:count,
+              end:"latest",
+              style:"ticks",
+              subscribe:0,
+              req_id:i+1
+            }));
+          });
         };
+
         ws.onmessage=event=>{
           let data;
           try{data=JSON.parse(event.data)}catch(e){return}
+
           if(data.error){
-            if(done)return;
-            done=true;
-            clearTimeout(timer);
-            try{ws.close()}catch(e){}
-            reject(new Error(data.error.message||"Deriv API rejected request"));
-            return;
-          }
-          if(data.msg_type==="history"&&data.history){
-            if(done)return;
-            done=true;
-            clearTimeout(timer);
-            try{ws.close()}catch(e){}
-            if(!data.history.prices){
-              reject(new Error("Deriv returned no prices"));
-              return;
+            if(data.req_id){
+              received[data.req_id]={error:data.error.message||"Deriv API rejected request"};
             }
-            resolve(data.history.prices);
+          }else if(data.msg_type==="history"&&data.history&&data.req_id){
+            received[data.req_id]=data.history.prices||[];
+          }
+
+          if(Object.keys(received).length===indices.length){
+            if(done)return;
+            done=true;
+            clearTimeout(timer);
+            try{ws.close()}catch(e){}
+            resolve(received);
           }
         };
+
         ws.onerror=()=>{
           if(done)return;
           done=true;
@@ -101,16 +111,83 @@ async function getHistory(symbol,count){
           try{ws.close()}catch(e){}
           reject(new Error("WebSocket connection failed"));
         };
+
+        ws.onclose=event=>{
+          if(done)return;
+          if(event.code!==1000){
+            done=true;
+            clearTimeout(timer);
+            reject(new Error(`WebSocket closed (code ${event.code})`));
+          }
+        };
       });
-      return prices;
+      return histories;
     }catch(e){
       lastError=e.message||"WebSocket connection failed";
     }
   }
   throw new Error(lastError);
 }
+
 function analyze(symbol,name,prices){const counts=Array(10).fill(0);let valid=0;for(const price of prices){const d=lastDigit(price);if(Number.isInteger(d)&&d>=0&&d<=9){counts[d]++;valid++}}if(!valid)throw new Error("No valid digits received");const ranked=counts.map((count,digit)=>({digit,count,percent:count/valid*100})).sort((a,b)=>b.percent-a.percent);return{symbol,name,ticks:valid,digit:ranked[0].digit,percent:ranked[0].percent,secondPercent:ranked[1].percent,lead:ranked[0].percent-ranked[1].percent}}
-async function scan(){const button=document.getElementById("scan"),status=document.getElementById("status"),results=document.getElementById("results"),history=Number(document.getElementById("history").value),minimum=Number(document.getElementById("minSignals").value);button.disabled=true;status.textContent="Testing Deriv connection...";document.getElementById("bestIndex").textContent="—";document.getElementById("bestDigit").textContent="—";document.getElementById("bestPercent").textContent="—";document.getElementById("secondPercent").textContent="—";const output=[];for(const index of INDICES){status.textContent="Scanning "+index.name+"...";try{const prices=await getHistory(index.symbol,history);output.push(analyze(index.symbol,index.name,prices))}catch(error){output.push({symbol:index.symbol,name:index.name,error:error.message})}}const valid=output.filter(x=>!x.error&&x.ticks>=minimum).sort((a,b)=>b.percent!==a.percent?b.percent-a.percent:b.lead-a.lead);if(!valid.length){status.textContent="Scan complete — no qualified signal.";results.innerHTML=output.map((x,i)=>`<tr><td>${i+1}</td><td>${x.name}</td><td colspan="6" class="bad">${x.error||"Insufficient data"}</td></tr>`).join("");document.getElementById("bestIndex").textContent="NONE";document.getElementById("message").textContent="No index currently meets the minimum data requirement.";button.disabled=false;return}const best=valid[0];document.getElementById("bestIndex").textContent=best.name;document.getElementById("bestDigit").textContent=best.digit;document.getElementById("bestPercent").textContent=best.percent.toFixed(2)+"%";document.getElementById("secondPercent").textContent=best.secondPercent.toFixed(2)+"%";document.getElementById("message").innerHTML="<strong>Best research candidate:</strong> "+best.name+" — digit <strong>"+best.digit+"</strong> — highest observed frequency <strong>"+best.percent.toFixed(2)+"%</strong>, with a "+best.lead.toFixed(2)+" percentage-point lead over the second digit.";results.innerHTML=valid.map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.name}</strong></td><td>${x.ticks}</td><td><strong>${x.digit}</strong></td><td>${x.percent.toFixed(2)}%</td><td>${x.secondPercent.toFixed(2)}%</td><td>${x.lead.toFixed(2)} pp</td><td class="${i===0?'good':''}">${i===0?'BEST':'VALID'}</td></tr>`).join("");status.textContent="Scan complete — best candidate identified.";button.disabled=false}
+async function scan(){
+  const button=document.getElementById("scan"),
+    status=document.getElementById("status"),
+    results=document.getElementById("results"),
+    history=Number(document.getElementById("history").value),
+    minimum=Number(document.getElementById("minSignals").value);
+
+  button.disabled=true;
+  status.textContent="Connecting to Deriv and requesting market history...";
+  document.getElementById("bestIndex").textContent="—";
+  document.getElementById("bestDigit").textContent="—";
+  document.getElementById("bestPercent").textContent="—";
+  document.getElementById("secondPercent").textContent="—";
+
+  let histories;
+  try{
+    histories=await getAllHistories(INDICES,history);
+  }catch(error){
+    status.textContent="Deriv connection failed: "+error.message;
+    results.innerHTML=INDICES.map((x,i)=>`<tr><td>${i+1}</td><td>${x.name}</td><td colspan="6" class="bad">${error.message}</td></tr>`).join("");
+    document.getElementById("bestIndex").textContent="NONE";
+    document.getElementById("message").textContent="No market data was received. No Matches recommendation is being forced.";
+    button.disabled=false;
+    return;
+  }
+
+  const output=INDICES.map((index,i)=>{
+    const data=histories[i+1];
+    if(data&&data.error)return {symbol:index.symbol,name:index.name,error:data.error};
+    try{return analyze(index.symbol,index.name,data||[])}
+    catch(error){return {symbol:index.symbol,name:index.name,error:error.message}}
+  });
+
+  const valid=output
+    .filter(x=>!x.error&&x.ticks>=minimum)
+    .sort((a,b)=>b.percent!==a.percent?b.percent-a.percent:b.lead-a.lead);
+
+  if(!valid.length){
+    status.textContent="Scan complete — no qualified signal.";
+    results.innerHTML=output.map((x,i)=>`<tr><td>${i+1}</td><td>${x.name}</td><td colspan="6" class="bad">${x.error||"Insufficient data"}</td></tr>`).join("");
+    document.getElementById("bestIndex").textContent="NONE";
+    document.getElementById("message").textContent="No index currently meets the minimum data requirement.";
+    button.disabled=false;
+    return;
+  }
+
+  document.getElementById("bestIndex").textContent=valid[0].name;
+  document.getElementById("bestDigit").textContent=valid[0].digit;
+  document.getElementById("bestPercent").textContent=valid[0].percent.toFixed(2)+"%";
+  document.getElementById("secondPercent").textContent=valid[0].secondPercent.toFixed(2)+"%";
+  document.getElementById("message").innerHTML="<strong>Best research candidate:</strong> "+valid[0].name+" — digit <strong>"+valid[0].digit+"</strong> — highest observed frequency <strong>"+valid[0].percent.toFixed(2)+"%</strong>, with a "+valid[0].lead.toFixed(2)+" percentage-point lead over the second digit.";
+
+  results.innerHTML=valid.map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.name}</strong></td><td>${x.ticks}</td><td><strong>${x.digit}</strong></td><td>${x.percent.toFixed(2)}%</td><td>${x.secondPercent.toFixed(2)}%</td><td>${x.lead.toFixed(2)} pp</td><td class="${i===0?'good':''}">${i===0?'BEST':'VALID'}</td></tr>`).join("");
+  status.textContent="Scan complete — best candidate identified.";
+  button.disabled=false;
+}
+
+document.getElementById("scan"),status=document.getElementById("status"),results=document.getElementById("results"),history=Number(document.getElementById("history").value),minimum=Number(document.getElementById("minSignals").value);button.disabled=true;status.textContent="Testing Deriv connection...";document.getElementById("bestIndex").textContent="—";document.getElementById("bestDigit").textContent="—";document.getElementById("bestPercent").textContent="—";document.getElementById("secondPercent").textContent="—";const output=[];for(const index of INDICES){status.textContent="Scanning "+index.name+"...";try{const prices=await getHistory(index.symbol,history);output.push(analyze(index.symbol,index.name,prices))}catch(error){output.push({symbol:index.symbol,name:index.name,error:error.message})}}const valid=output.filter(x=>!x.error&&x.ticks>=minimum).sort((a,b)=>b.percent!==a.percent?b.percent-a.percent:b.lead-a.lead);if(!valid.length){status.textContent="Scan complete — no qualified signal.";results.innerHTML=output.map((x,i)=>`<tr><td>${i+1}</td><td>${x.name}</td><td colspan="6" class="bad">${x.error||"Insufficient data"}</td></tr>`).join("");document.getElementById("bestIndex").textContent="NONE";document.getElementById("message").textContent="No index currently meets the minimum data requirement.";button.disabled=false;return}const best=valid[0];document.getElementById("bestIndex").textContent=best.name;document.getElementById("bestDigit").textContent=best.digit;document.getElementById("bestPercent").textContent=best.percent.toFixed(2)+"%";document.getElementById("secondPercent").textContent=best.secondPercent.toFixed(2)+"%";document.getElementById("message").innerHTML="<strong>Best research candidate:</strong> "+best.name+" — digit <strong>"+best.digit+"</strong> — highest observed frequency <strong>"+best.percent.toFixed(2)+"%</strong>, with a "+best.lead.toFixed(2)+" percentage-point lead over the second digit.";results.innerHTML=valid.map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.name}</strong></td><td>${x.ticks}</td><td><strong>${x.digit}</strong></td><td>${x.percent.toFixed(2)}%</td><td>${x.secondPercent.toFixed(2)}%</td><td>${x.lead.toFixed(2)} pp</td><td class="${i===0?'good':''}">${i===0?'BEST':'VALID'}</td></tr>`).join("");status.textContent="Scan complete — best candidate identified.";button.disabled=false}
 document.getElementById("scan").addEventListener("click",scan);
 </script>
 </body>
