@@ -18,7 +18,7 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 <div><label>Minimum signals</label><select id="minSignals"><option value="20">20 signals</option><option value="30" selected>30 signals</option><option value="50">50 signals</option><option value="75">75 signals</option></select></div>
 </div>
 <button id="scan" style="margin-top:15px">Find Best Index + Digit</button>
-<div id="status" class="status">Ready — public market data requires no API token.</div>
+<div id="status" class="status">Ready — public market data. The scanner uses Deriv’s WebSocket API with a public test App ID.</div>
 </div>
 <div class="card">
 <h2>Best Match Recommendation</h2>
@@ -39,9 +39,76 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 </div>
 <script>
 const INDICES=[{symbol:"1HZ10V",name:"Volatility 10 (1s)"},{symbol:"1HZ25V",name:"Volatility 25 (1s)"},{symbol:"1HZ50V",name:"Volatility 50 (1s)"},{symbol:"1HZ75V",name:"Volatility 75 (1s)"},{symbol:"1HZ100V",name:"Volatility 100 (1s)"}];
-const WS_URL="wss://ws.binaryws.com/websockets/v3";
+const APP_ID="1089";
+const WS_URLS=[
+  `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`,
+  "wss://ws.binaryws.com/websockets/v3"
+];
 function lastDigit(quote){const s=String(quote),parts=s.split(".");return parts.length>1?Number(parts[1].slice(-1)):Number(s.slice(-1))}
-function getHistory(symbol,count){return new Promise((resolve,reject)=>{let ws,done=false;const timer=setTimeout(()=>{if(done)return;done=true;try{ws.close()}catch(e){}reject(new Error("Deriv request timed out"))},30000);try{ws=new WebSocket(WS_URL)}catch(e){clearTimeout(timer);reject(new Error("Browser could not open Deriv WebSocket"));return}ws.onopen=()=>ws.send(JSON.stringify({ticks_history:symbol,count:count,end:"latest",style:"ticks",subscribe:0}));ws.onmessage=event=>{let data;try{data=JSON.parse(event.data)}catch(e){return}if(data.error){if(done)return;done=true;clearTimeout(timer);try{ws.close()}catch(e){}reject(new Error(data.error.message||"Deriv API rejected request"));return}if(data.msg_type==="history"&&data.history){if(done)return;done=true;clearTimeout(timer);try{ws.close()}catch(e){}if(!data.history.prices){reject(new Error("Deriv returned no prices"));return}resolve(data.history.prices)}};ws.onerror=()=>{if(done)return;done=true;clearTimeout(timer);try{ws.close()}catch(e){}reject(new Error("WebSocket connection failed"))}})}
+async function getHistory(symbol,count){
+  let lastError="WebSocket connection failed";
+  for(const url of WS_URLS){
+    try{
+      const prices=await new Promise((resolve,reject)=>{
+        let ws,done=false;
+        const timer=setTimeout(()=>{
+          if(done)return;
+          done=true;
+          try{ws.close()}catch(e){}
+          reject(new Error("Deriv request timed out"));
+        },30000);
+        try{ws=new WebSocket(url)}catch(e){
+          clearTimeout(timer);
+          reject(new Error("Browser could not open Deriv WebSocket"));
+          return;
+        }
+        ws.onopen=()=>{
+          ws.send(JSON.stringify({
+            ticks_history:symbol,
+            count:count,
+            end:"latest",
+            style:"ticks",
+            subscribe:0
+          }));
+        };
+        ws.onmessage=event=>{
+          let data;
+          try{data=JSON.parse(event.data)}catch(e){return}
+          if(data.error){
+            if(done)return;
+            done=true;
+            clearTimeout(timer);
+            try{ws.close()}catch(e){}
+            reject(new Error(data.error.message||"Deriv API rejected request"));
+            return;
+          }
+          if(data.msg_type==="history"&&data.history){
+            if(done)return;
+            done=true;
+            clearTimeout(timer);
+            try{ws.close()}catch(e){}
+            if(!data.history.prices){
+              reject(new Error("Deriv returned no prices"));
+              return;
+            }
+            resolve(data.history.prices);
+          }
+        };
+        ws.onerror=()=>{
+          if(done)return;
+          done=true;
+          clearTimeout(timer);
+          try{ws.close()}catch(e){}
+          reject(new Error("WebSocket connection failed"));
+        };
+      });
+      return prices;
+    }catch(e){
+      lastError=e.message||"WebSocket connection failed";
+    }
+  }
+  throw new Error(lastError);
+}
 function analyze(symbol,name,prices){const counts=Array(10).fill(0);let valid=0;for(const price of prices){const d=lastDigit(price);if(Number.isInteger(d)&&d>=0&&d<=9){counts[d]++;valid++}}if(!valid)throw new Error("No valid digits received");const ranked=counts.map((count,digit)=>({digit,count,percent:count/valid*100})).sort((a,b)=>b.percent-a.percent);return{symbol,name,ticks:valid,digit:ranked[0].digit,percent:ranked[0].percent,secondPercent:ranked[1].percent,lead:ranked[0].percent-ranked[1].percent}}
 async function scan(){const button=document.getElementById("scan"),status=document.getElementById("status"),results=document.getElementById("results"),history=Number(document.getElementById("history").value),minimum=Number(document.getElementById("minSignals").value);button.disabled=true;status.textContent="Testing Deriv connection...";document.getElementById("bestIndex").textContent="—";document.getElementById("bestDigit").textContent="—";document.getElementById("bestPercent").textContent="—";document.getElementById("secondPercent").textContent="—";const output=[];for(const index of INDICES){status.textContent="Scanning "+index.name+"...";try{const prices=await getHistory(index.symbol,history);output.push(analyze(index.symbol,index.name,prices))}catch(error){output.push({symbol:index.symbol,name:index.name,error:error.message})}}const valid=output.filter(x=>!x.error&&x.ticks>=minimum).sort((a,b)=>b.percent!==a.percent?b.percent-a.percent:b.lead-a.lead);if(!valid.length){status.textContent="Scan complete — no qualified signal.";results.innerHTML=output.map((x,i)=>`<tr><td>${i+1}</td><td>${x.name}</td><td colspan="6" class="bad">${x.error||"Insufficient data"}</td></tr>`).join("");document.getElementById("bestIndex").textContent="NONE";document.getElementById("message").textContent="No index currently meets the minimum data requirement.";button.disabled=false;return}const best=valid[0];document.getElementById("bestIndex").textContent=best.name;document.getElementById("bestDigit").textContent=best.digit;document.getElementById("bestPercent").textContent=best.percent.toFixed(2)+"%";document.getElementById("secondPercent").textContent=best.secondPercent.toFixed(2)+"%";document.getElementById("message").innerHTML="<strong>Best research candidate:</strong> "+best.name+" — digit <strong>"+best.digit+"</strong> — highest observed frequency <strong>"+best.percent.toFixed(2)+"%</strong>, with a "+best.lead.toFixed(2)+" percentage-point lead over the second digit.";results.innerHTML=valid.map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.name}</strong></td><td>${x.ticks}</td><td><strong>${x.digit}</strong></td><td>${x.percent.toFixed(2)}%</td><td>${x.secondPercent.toFixed(2)}%</td><td>${x.lead.toFixed(2)} pp</td><td class="${i===0?'good':''}">${i===0?'BEST':'VALID'}</td></tr>`).join("");status.textContent="Scan complete — best candidate identified.";button.disabled=false}
 document.getElementById("scan").addEventListener("click",scan);
