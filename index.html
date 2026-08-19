@@ -251,6 +251,77 @@ function runBacktest(){
  $("btResults").style.display="block";
 }
 
+
+function fetchHistory(sym,n){
+ return new Promise((resolve,reject)=>{
+  let idx=0, done=false, timer=null, sock=null;
+
+  const finish=(err,data)=>{
+   if(done)return;
+   done=true;
+   if(timer)clearTimeout(timer);
+   try{if(sock)sock.close()}catch(_){}
+   err?reject(err):resolve(data);
+  };
+
+  const tryEndpoint=()=>{
+   if(idx>=ENDPOINTS.length){
+    finish(new Error("Could not connect to Deriv public market-data service."));
+    return;
+   }
+   const url=ENDPOINTS[idx++];
+   try{sock=new WebSocket(url)}catch(e){tryEndpoint();return}
+
+   timer=setTimeout(()=>{
+    try{sock.close()}catch(_){}
+    tryEndpoint();
+   },12000);
+
+   sock.onopen=()=>{
+    try{
+     sock.send(JSON.stringify({
+      ticks_history:sym,
+      count:n,
+      end:"latest",
+      style:"ticks",
+      req_id:Math.floor(Math.random()*1e9)
+     }));
+    }catch(e){finish(e)}
+   };
+
+   sock.onmessage=(ev)=>{
+    let d;
+    try{d=JSON.parse(ev.data)}catch(_){return}
+    if(d.error){
+     finish(new Error(d.error.message||"Deriv returned an error."));
+     return;
+    }
+    if(d.msg_type==="history" && d.history){
+     const prices=d.history.prices||[];
+     const times=d.history.times||[];
+     const pip=Number(d.history.pip_size);
+     const data=prices.map((q,i)=>({
+      quote:q,
+      epoch:times[i],
+      digit:digit(q,pip)
+     })).filter(x=>x.digit!=null);
+     if(data.length<Math.min(n,300))
+       finish(new Error(`Deriv returned only ${data.length} usable ticks for ${sym}.`));
+     else
+       finish(null,data);
+    }
+   };
+
+   sock.onerror=()=>{try{sock.close()}catch(_){};tryEndpoint()};
+   sock.onclose=()=>{
+    if(!done && idx<ENDPOINTS.length)tryEndpoint();
+   };
+  };
+
+  tryEndpoint();
+ });
+}
+
 function settings(){
  return {
   primary:+$("window").value,
