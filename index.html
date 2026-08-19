@@ -254,28 +254,40 @@ function runBacktest(){
 
 function fetchHistory(sym,n){
  return new Promise((resolve,reject)=>{
-  let idx=0, done=false, timer=null, sock=null;
+  const endpoints=[
+   "wss://ws.binaryws.com/websockets/v3",
+   "wss://api.derivws.com/trading/v1/options/ws/public"
+  ];
+  let endpointIndex=0, finished=false, timer=null, sock=null;
 
   const finish=(err,data)=>{
-   if(done)return;
-   done=true;
+   if(finished)return;
+   finished=true;
    if(timer)clearTimeout(timer);
-   try{if(sock)sock.close()}catch(_){}
+   try{if(sock)sock.close()}catch(_){ }
    err?reject(err):resolve(data);
   };
 
-  const tryEndpoint=()=>{
-   if(idx>=ENDPOINTS.length){
-    finish(new Error("Could not connect to Deriv public market-data service."));
+  const errorText=(d)=>{
+   if(d?.error?.message)return d.error.message;
+   if(Array.isArray(d?.errors)&&d.errors.length)return d.errors.map(x=>x.message||x.code||"API error").join("; ");
+   return "Unknown Deriv API error";
+  };
+
+  const tryNext=()=>{
+   if(finished)return;
+   if(endpointIndex>=endpoints.length){
+    finish(new Error("Unable to retrieve tick history from either Deriv public WebSocket endpoint. Check that the GitHub Pages site is using this updated file and that the browser can reach Deriv."));
     return;
    }
-   const url=ENDPOINTS[idx++];
-   try{sock=new WebSocket(url)}catch(e){tryEndpoint();return}
+
+   const url=endpoints[endpointIndex++];
+   try{sock=new WebSocket(url)}catch(e){tryNext();return}
 
    timer=setTimeout(()=>{
-    try{sock.close()}catch(_){}
-    tryEndpoint();
-   },12000);
+    try{sock.close()}catch(_){ }
+    if(!finished)tryNext();
+   },15000);
 
    sock.onopen=()=>{
     try{
@@ -284,41 +296,49 @@ function fetchHistory(sym,n){
       count:n,
       end:"latest",
       style:"ticks",
-      req_id:Math.floor(Math.random()*1e9)
+      subscribe:0,
+      req_id:Math.floor(Math.random()*2147483647)
      }));
-    }catch(e){finish(e)}
+    }catch(e){try{sock.close()}catch(_){};tryNext()}
    };
 
    sock.onmessage=(ev)=>{
     let d;
     try{d=JSON.parse(ev.data)}catch(_){return}
-    if(d.error){
-     finish(new Error(d.error.message||"Deriv returned an error."));
+    if(d.error || d.errors){
+     try{sock.close()}catch(_){ }
+     if(!finished)tryNext();
      return;
     }
-    if(d.msg_type==="history" && d.history){
-     const prices=d.history.prices||[];
-     const times=d.history.times||[];
-     const pip=Number(d.history.pip_size);
-     const data=prices.map((q,i)=>({
-      quote:q,
-      epoch:times[i],
-      digit:digit(q,pip)
-     })).filter(x=>x.digit!=null);
-     if(data.length<Math.min(n,300))
-       finish(new Error(`Deriv returned only ${data.length} usable ticks for ${sym}.`));
-     else
-       finish(null,data);
+    if(d.msg_type!=="history" || !d.history)return;
+
+    const prices=Array.isArray(d.history.prices)?d.history.prices:[];
+    const times=Array.isArray(d.history.times)?d.history.times:[];
+    const pip=Number(d.pip_size ?? d.history.pip_size ?? 2);
+    const data=prices.map((q,i)=>({
+     quote:q,
+     epoch:times[i],
+     digit:digit(q,pip)
+    })).filter(x=>x.epoch!=null && x.digit!=null);
+
+    if(data.length<Math.min(n,300)){
+     try{sock.close()}catch(_){ }
+     if(!finished)tryNext();
+    }else{
+     finish(null,data);
     }
    };
 
-   sock.onerror=()=>{try{sock.close()}catch(_){};tryEndpoint()};
+   sock.onerror=()=>{
+    try{sock.close()}catch(_){ }
+    if(!finished)tryNext();
+   };
    sock.onclose=()=>{
-    if(!done && idx<ENDPOINTS.length)tryEndpoint();
+    if(!finished && endpointIndex<endpoints.length)tryNext();
    };
   };
 
-  tryEndpoint();
+  tryNext();
  });
 }
 
