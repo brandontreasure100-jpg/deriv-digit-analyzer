@@ -17,7 +17,7 @@ const ENDPOINTS=["wss://api.derivws.com/trading/v1/options/ws/public","wss://ws.
 let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=100,connecting=false;
 const $=id=>document.getElementById(id);
 function status(t){$("status").textContent=t}
-function digit(q){let s=String(q).replace(/[^0-9]/g,"");return s?+s[s.length-1]:null}
+function digit(q,pipSize=2){let s=Number(q) .toFixed(pipSize);return s?s[s.length-1]*1:null}
 function render(){
  const c=Array(10).fill(0);ticks.forEach(x=>{if(x.digit!=null)c[x.digit]++});
  const n=ticks.length;let b=0;for(let d=1;d<10;d++)if(c[d]>c[b])b=d;
@@ -43,13 +43,13 @@ function openSocket(){
   if(d.error){fail("Deriv error: "+(d.error.message||"Unknown error"));return}
   if(d.msg_type==="history"&&d.history){
    let p=d.history.prices||[],t=d.history.times||[];
-   ticks=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q)})).filter(x=>x.digit!=null);
+   ticks=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q,d.history.pip_size)})).filter(x=>x.digit!=null);
    render();
    try{send({ticks:symbol,subscribe:1,req_id:2});status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}catch(e){fail(e.message)}
    return;
   }
   if(d.msg_type==="tick"&&d.tick){
-   let q=d.tick.quote,x={quote:q,epoch:d.tick.epoch,digit:digit(q)};
+   let q=d.tick.quote,x={quote:q,epoch:d.tick.epoch,digit:digit(q,d.tick.pip_size)};
    if(x.digit!=null){ticks.push(x);if(ticks.length>count)ticks.shift();render();status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}
   }
  };
