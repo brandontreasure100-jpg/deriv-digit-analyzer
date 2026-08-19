@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Deriv Digit Analyzer — Rolling Walk-Forward v3</title>
+<title>Deriv Digit Analyzer — Rolling Walk-Forward v3.3</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}
 .wrap{max-width:1100px;margin:auto;padding:18px}
@@ -102,7 +102,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px so
 </div>
 
 <div class="card">
-<h2>Automatic Synthetic-Index Scanner — Rolling Walk-Forward v3</h2>
+<h2>Automatic Synthetic-Index Scanner — Rolling Walk-Forward v3.3</h2>
 <div class="muted">
 Tests each Volatility 1s index with repeated train → unseen test → roll-forward folds.
 The rules stay fixed across every fold. An index is selected only if the edge survives multiple independent test periods.
@@ -252,13 +252,13 @@ function runBacktest(){
 }
 
 
-function fetchHistory(sym,n){
+function requestHistoryChunk(sym,n,endValue){
  return new Promise((resolve,reject)=>{
   const endpoints=[
-   "wss://ws.binaryws.com/websockets/v3",
-   "wss://api.derivws.com/trading/v1/options/ws/public"
+   "wss://api.derivws.com/trading/v1/options/ws/public",
+   "wss://ws.binaryws.com/websockets/v3"
   ];
-  let endpointIndex=0, finished=false, timer=null, sock=null;
+  let endpointIndex=0,finished=false,timer=null,sock=null;
 
   const finish=(err,data)=>{
    if(finished)return;
@@ -277,69 +277,87 @@ function fetchHistory(sym,n){
   const tryNext=()=>{
    if(finished)return;
    if(endpointIndex>=endpoints.length){
-    finish(new Error("Unable to retrieve tick history from either Deriv public WebSocket endpoint. Check that the GitHub Pages site is using this updated file and that the browser can reach Deriv."));
+    finish(new Error(`Deriv history request failed for ${sym} (${n} ticks ending ${endValue}).`));
     return;
    }
-
    const url=endpoints[endpointIndex++];
-   try{sock=new WebSocket(url)}catch(e){tryNext();return}
-
+   try{sock=new WebSocket(url)}catch(_){tryNext();return}
    timer=setTimeout(()=>{
     try{sock.close()}catch(_){ }
     if(!finished)tryNext();
    },15000);
-
    sock.onopen=()=>{
-    try{
-     sock.send(JSON.stringify({
-      ticks_history:sym,
-      count:n,
-      end:"latest",
-      style:"ticks",
-      subscribe:0,
-      req_id:Math.floor(Math.random()*2147483647)
-     }));
-    }catch(e){try{sock.close()}catch(_){};tryNext()}
+    const req={
+     ticks_history:sym,
+     count:n,
+     end:endValue,
+     style:"ticks",
+     req_id:Math.floor(Math.random()*2147483647)
+    };
+    if(url.includes("api.derivws.com"))req.subscribe=0;
+    try{sock.send(JSON.stringify(req))}catch(_){
+     try{sock.close()}catch(__){}
+     if(!finished)tryNext();
+    }
    };
-
    sock.onmessage=(ev)=>{
-    let d;
-    try{d=JSON.parse(ev.data)}catch(_){return}
-    if(d.error || d.errors){
+    let d;try{d=JSON.parse(ev.data)}catch(_){return}
+    if(d.error||d.errors){
+     const msg=errorText(d);
      try{sock.close()}catch(_){ }
      if(!finished)tryNext();
      return;
     }
-    if(d.msg_type!=="history" || !d.history)return;
-
+    if(d.msg_type!=="history"||!d.history)return;
     const prices=Array.isArray(d.history.prices)?d.history.prices:[];
     const times=Array.isArray(d.history.times)?d.history.times:[];
     const pip=Number(d.pip_size ?? d.history.pip_size ?? 2);
-    const data=prices.map((q,i)=>({
-     quote:q,
-     epoch:times[i],
-     digit:digit(q,pip)
-    })).filter(x=>x.epoch!=null && x.digit!=null);
-
-    if(data.length<Math.min(n,300)){
+    const data=prices.map((q,i)=>({quote:q,epoch:times[i],digit:digit(q,pip)}))
+      .filter(x=>x.epoch!=null&&x.digit!=null);
+    if(data.length===0){
      try{sock.close()}catch(_){ }
      if(!finished)tryNext();
-    }else{
-     finish(null,data);
+     return;
     }
+    finish(null,data);
    };
-
    sock.onerror=()=>{
     try{sock.close()}catch(_){ }
     if(!finished)tryNext();
    };
-   sock.onclose=()=>{
-    if(!finished && endpointIndex<endpoints.length)tryNext();
-   };
+   sock.onclose=()=>{if(!finished&&endpointIndex<endpoints.length)tryNext()};
   };
-
   tryNext();
  });
+}
+
+async function fetchHistory(sym,n){
+ // Deriv can return history in chunks. Build larger research samples by walking
+ // backwards in time, then sort chronologically and remove duplicate epochs.
+ const target=Math.max(1,Math.floor(n));
+ const chunkSize=5000;
+ let endValue="latest";
+ let all=[];
+ let safety=0;
+ while(all.length<target&&safety<20){
+  safety++;
+  const need=Math.min(chunkSize,target-all.length);
+  const chunk=await requestHistoryChunk(sym,need,endValue);
+  if(!chunk.length)break;
+  all=chunk.concat(all);
+  const oldest=Math.min(...chunk.map(x=>Number(x.epoch)).filter(Number.isFinite));
+  if(!Number.isFinite(oldest)||chunk.length<need)break;
+  endValue=String(Math.max(0,Math.floor(oldest)-1));
+ }
+ const seen=new Set();
+ all=all.filter(x=>{
+  const k=String(x.epoch)+"|"+String(x.quote);
+  if(seen.has(k))return false;seen.add(k);return true;
+ });
+ all.sort((a,b)=>Number(a.epoch)-Number(b.epoch));
+ if(all.length>target)all=all.slice(-target);
+ if(all.length<Math.min(target,300))throw new Error(`Only ${all.length} usable ticks were returned for ${sym}.`);
+ return all;
 }
 
 function settings(){
@@ -503,7 +521,8 @@ async function scanAll(){
    <td>${f.signals?((f.rate-10>=0?'+':'')+(f.rate-10).toFixed(2)+' pp'):'—'}</td>
    <td class="fail">${f.signals>=s.minFoldSignals?(f.rate>10?'ABOVE':'BELOW'):'LOW SAMPLE'}</td>
   </tr>`).join(""):"";
-  $("scanStatus").textContent=`Rolling scan complete — 0 indexes passed the research gate.`;
+  const firstError=results.find(r=>r.error);
+  $("scanStatus").textContent=firstError?`Rolling scan complete — 0 indexes passed. First data error: ${firstError.error}`:`Rolling scan complete — 0 indexes passed the research gate.`;
   $("stabilityStatus").textContent="No index passed the rolling gate. Do not select one just because it ranked highest.";
  }
  $("scanResults").style.display="block";
