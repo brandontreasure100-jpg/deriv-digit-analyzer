@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deriv Digit Analyzer — Best Match Scanner v10</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}h2{margin:0 0 6px}.muted,.small{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button,input{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px;box-sizing:border-box}button{cursor:pointer;background:#111827;color:#fff}.scan{background:#175cd3}button:disabled{opacity:.55;cursor:not-allowed}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.heroBox{border:1px solid #d9dee8;border-radius:12px;padding:14px}.heroBox .label{font-size:12px;color:#667085}.heroBox .value{font-size:24px;font-weight:700;margin-top:6px}.heroBox.highlight{border:2px solid #175cd3;background:#f5f9ff}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.tableWrap{overflow-x:auto}.good{background:#eefbf3}.warn{background:#fff7e6;padding:12px;border-radius:9px;line-height:1.45}.bad{background:#fff0f0}.rank1{font-weight:700}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}@media(max-width:700px){.controls{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="card">
+<h1>Deriv Digit Analyzer — Best Match Scanner v10</h1>
+<div class="muted">Research-only scanner for Deriv 1-second Volatility Indices. It compares all five indices, identifies the strongest research candidate, and gives the current digit with the highest observed frequency when the confidence rules qualify.</div>
+<div class="controls" style="margin-top:12px">
+<div><label>History per index</label><select id="history"><option value="3000">3,000 ticks</option><option value="5000" selected>5,000 ticks</option><option value="10000">10,000 ticks</option></select></div>
+<div><label>Minimum OOS signals</label><select id="minSignals"><option value="20">20 signals</option><option value="30" selected>30 signals</option><option value="50">50 signals</option></select></div>
+</div>
+<button id="scan" class="scan" style="margin-top:10px">Find Best Index + Digit</button>
+<div id="status" class="status">Ready. Public market data does not require an API token.</div>
+</div>
+
+<div class="card">
+<h2>Best Match Recommendation</h2>
+<div class="hero">
+<div class="heroBox highlight"><div class="label">BEST SYNTHETIC INDEX</div><div id="bestIndex" class="value">—</div></div>
+<div class="heroBox"><div class="label">DIGIT TO USE</div><div id="bestDigit" class="value">—</div></div>
+<div class="heroBox"><div class="label">HIGHEST CURRENT %</div><div id="bestPct" class="value">—</div></div>
+<div class="heroBox"><div class="label">OOS WIN RATE</div><div id="bestOos" class="value">—</div></div>
+</div>
+<div id="recommendation" class="status" style="margin-top:12px">Run the scanner to calculate the recommendation.</div>
+</div>
+
+<div class="card"><h2>Index Comparison</h2><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>OOS wins</th><th>OOS rate</th><th>Coverage</th><th>Current digit</th><th>Current %</th><th>Lead</th><th>Agreement</th><th>Status</th></tr></thead><tbody id="results"></tbody></table></div></div>
+
+<div class="card"><h2>Current Digit Distribution — Selected Index</h2><div id="selectedTitle" class="muted">No index selected.</div><div id="digits" class="grid" style="margin-top:10px"></div></div>
+
+<div class="card"><h2>How the recommendation works</h2><div class="small">1. Historical ticks are downloaded independently for all five indices. 2. The last 30% is treated as unseen out-of-sample data. 3. A Matches signal requires the primary 100-tick window to have at least 15% frequency, at least a 3-point lead over the second digit, and agreement from at least 3 of the 25/50/100/250-tick windows. 4. The displayed digit is the current consensus digit. 5. The scanner will say <b>NO QUALIFIED SIGNAL</b> rather than force a trade when the evidence is weak.</div></div>
+
+<div class="card warn"><strong>Important:</strong> A high historical percentage is not a guarantee of the next tick. Digit outcomes can be highly variable, and this tool does not promise an 80% win rate or guaranteed profit. Use the result as research and verify it on fresh data before risking money.</div>
+</div>
+<script>
+const SYMBOLS=[
+{id:"1HZ10V",name:"Volatility 10 (1s)"},
+{id:"1HZ25V",name:"Volatility 25 (1s)"},
+{id:"1HZ50V",name:"Volatility 50 (1s)"},
+{id:"1HZ75V",name:"Volatility 75 (1s)"},
+{id:"1HZ100V",name:"Volatility 100 (1s)"}
+];
+const WS_URL="wss://api.derivws.com/trading/v1/options/ws/public";
+const $=id=>document.getElementById(id);
+function digit(q,pip){const p=Number.isFinite(Number(pip))?Number(pip):2;const s=Number(q).toFixed(p);return s?Number(s[s.length-1]):null}
+function wsRequest(payload,timeout=20000){return new Promise((resolve,reject)=>{let done=false,timer,sock;const finish=(e,d)=>{if(done)return;done=true;clearTimeout(timer);try{sock&&sock.close()}catch(_){}e?reject(e):resolve(d)};try{sock=new WebSocket(WS_URL)}catch(e){finish(e);return}timer=setTimeout(()=>finish(new Error("Deriv WebSocket timed out.")),timeout);sock.onopen=()=>{try{sock.send(JSON.stringify(payload))}catch(e){finish(e)}};sock.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.error){finish(new Error(d.error.message||"Deriv API error"));return}if(d.msg_type===payload.ticks_history?"history":payload.active_symbols?"active_symbols":null)finish(null,d);if(payload.ticks_history&&d.msg_type==="history")finish(null,d);if(payload.active_symbols&&d.msg_type==="active_symbols")finish(null,d)};sock.onerror=()=>finish(new Error("Deriv WebSocket connection failed."));sock.onclose=()=>{if(!done)finish(new Error("Deriv WebSocket closed before the response arrived."))}})}
+async function history(symbol,total){let out=[],end="latest",remaining=total;while(remaining>0){const n=Math.min(1000,remaining);const d=await wsRequest({ticks_history:symbol,end,count:n,style:"ticks",subscribe:0,req_id:Date.now()%1000000});const prices=d.history?.prices||[];const times=d.history?.times||[];if(!prices.length)break;const rows=prices.map((q,i)=>({quote:Number(q),epoch:Number(times[i]),digit:digit(q,d.pip_size)})).filter(x=>Number.isFinite(x.quote)&&x.digit!=null);out=rows.concat(out);remaining-=rows.length;const first=times[0];if(!first||rows.length===0)break;end=String(Number(first)-1);if(rows.length<n)break}return out.slice(-total)}
+function stats(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});const order=[0,1,2,3,4,5,6,7,8,9].sort((a,b)=>c[b]-c[a]);const a=order[0],b=order[1],n=arr.length;return{digit:a,count:c[a],total:n,pct:n?c[a]/n*100:0,second:b,secondPct:n?c[b]/n*100:0,lead:n?(c[a]-c[b])/n*100:0,counts:c}}
+function signalAt(data,i){if(i<250)return null;const windows=[25,50,100,250],s={};windows.forEach(w=>s[w]=stats(data.slice(i-w,i)));const primary=s[100];const agreement=windows.filter(w=>s[w].digit===primary.digit).length;const qualifies=primary.pct>=15&&primary.lead>=3&&agreement>=3;return{qualifies,digit:primary.digit,pct:primary.pct,lead:primary.lead,agreement}}
+function evaluateOOS(data){const start=Math.floor(data.length*.70);let signals=0,wins=0;for(let i=Math.max(250,start);i<data.length;i++){const p=signalAt(data,i);if(!p||!p.qualifies)continue;signals++;if(p.digit===data[i].digit)wins++}const points=Math.max(0,data.length-Math.max(250,start));return{signals,wins,rate:signals?wins/signals*100:0,coverage:points?signals/points*100:0}}
+function renderDigits(data){const s=stats(data);$('digits').innerHTML=s.counts.map((v,d)=>{const pct=data.length?v/data.length*100:0;return `<div class="digit ${d===s.digit?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${pct.toFixed(2)}%</div><div class="small">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(100,pct*2)}%"></div></div></div>`}).join('')}
+function rankScore(r,minSignals){const sample=Math.min(1,r.oos.signals/Math.max(minSignals,1));const edge=Math.max(0,(r.oos.rate-10)/10);const coverage=Math.min(1,r.oos.coverage/25);const current=Math.max(0,(r.current.pct-10)/10);const agreement=r.current.agreement/4;return edge*.45+sample*.20+coverage*.10+current*.15+agreement*.10}
+async function run(){const total=Number($('history').value),minSignals=Number($('minSignals').value);$('scan').disabled=true;$('status').textContent=`Downloading ${total.toLocaleString()} ticks for all five indices…`;$('results').innerHTML="";const rows=[];try{for(const sym of SYMBOLS){$('status').textContent=`Analyzing ${sym.name}…`;let data=[];try{data=await history(sym.id,total)}catch(e){rows.push({sym,error:e.message});continue}if(data.length<300){rows.push({sym,error:`Only ${data.length} ticks returned`});continue}const oos=evaluateOOS(data),current=stats(data.slice(-250)),sig=signalAt(data,data.length);rows.push({sym,data,oos,current,sig,score:rankScore({oos,current:sig||current},minSignals)});}
+const valid=rows.filter(r=>!r.error);valid.sort((a,b)=>b.score-a.score);$('results').innerHTML=rows.map((r,i)=>{if(r.error)return `<tr class="bad"><td>${i+1}</td><td>${r.sym.name}</td><td colspan="9">ERROR: ${r.error}</td></tr>`;const q=r.sig?.qualifies;return `<tr class="${i===0?'rank1':''}"><td>${i+1}</td><td>${r.sym.name}</td><td>${r.oos.signals}</td><td>${r.oos.wins}</td><td>${r.oos.rate.toFixed(2)}%</td><td>${r.oos.coverage.toFixed(1)}%</td><td>${r.sig? r.sig.digit:'—'}</td><td>${r.sig? r.sig.pct.toFixed(2)+'%':'—'}</td><td>${r.sig? r.sig.lead.toFixed(2)+' pp':'—'}</td><td>${r.sig? r.sig.agreement+'/4':'—'}</td><td class="${q?'good':''}">${q?'QUALIFIED':'HOLD'}</td></tr>`}).join('');
+const qualified=valid.filter(r=>r.oos.signals>=minSignals&&r.oos.rate>10&&r.sig?.qualifies);const candidate=(qualified.length?qualified:valid.filter(r=>r.oos.signals>=minSignals&&r.sig?.qualifies)).sort((a,b)=>b.score-a.score)[0];
+if(!candidate){$('bestIndex').textContent='NONE';$('bestDigit').textContent='—';$('bestPct').textContent='—';$('bestOos').textContent='—';$('recommendation').textContent='No index currently meets the full research gate. The scanner will not force a Matches recommendation.';$('recommendation').className='status bad';$('selectedTitle').textContent='No qualified index.';$('digits').innerHTML='';$('status').textContent='Scan complete — no qualified signal.';return}
+$('bestIndex').textContent=candidate.sym.name;$('bestDigit').textContent=candidate.sig.digit;$('bestPct').textContent=candidate.sig.pct.toFixed(2)+'%';$('bestOos').textContent=candidate.oos.rate.toFixed(2)+'%';$('recommendation').textContent=`Current leader: ${candidate.sym.name}. Predicted Matches digit: ${candidate.sig.digit}. Current 250-tick frequency: ${candidate.sig.pct.toFixed(2)}%. OOS research win rate: ${candidate.oos.rate.toFixed(2)}% from ${candidate.oos.signals} signals. Lead ${candidate.sig.lead.toFixed(2)} pp with ${candidate.sig.agreement}/4-window agreement.`;$('recommendation').className='status good';$('selectedTitle').textContent=`${candidate.sym.name} — current digit distribution over the latest 250 ticks`;renderDigits(candidate.data.slice(-250));$('status').textContent=`Scan complete — best qualified candidate: ${candidate.sym.name}.`;
+}catch(e){$('status').textContent=`Scan failed: ${e.message}`;}
+finally{$('scan').disabled=false}}
+$('scan').onclick=run;
+</script></body></html>
