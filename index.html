@@ -36,7 +36,20 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 <div class="muted">Downloads the same historical sample for all five 1-second Volatility indices, then evaluates the fixed confidence rules on the final 30% of each sample. The test segment is not used to choose the settings. Results are ranked by out-of-sample win rate, with signal count and coverage shown beside it.</div>
 <div class="controls" style="margin-top:12px"><div><label>Scanner history</label><select id="scanCount"><option value="1000">1000 ticks</option><option value="2500">2500 ticks</option><option value="5000" selected>5000 ticks</option></select></div><div><label>Out-of-sample share</label><select id="oosShare"><option value="0.20">Last 20%</option><option value="0.30" selected>Last 30%</option><option value="0.40">Last 40%</option></select></div></div>
 <button id="scan" class="scan" style="margin-top:10px">Scan All Synthetic Indices</button><div id="scanStatus" class="status">Scanner not run.</div>
-<div id="scanResults" style="margin-top:12px;display:none"><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead><tbody id="scanLog"></tbody></table></div><div class="small" style="margin-top:10px">Ranking is research-only. A higher observed win rate with very few signals is not automatically better. Prefer results with meaningful signal counts and repeat them on fresh data before considering any trading use.</div></div></div>
+<div id="scanResults" style="margin-top:12px;display:none"><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead><tbody id="scanLog"></tbody></table></div><div class="small" style="margin-top:10px">Ranking is research-only. A higher observed win rate with very few signals is not automatically better. Prefer results with meaningful signal counts and repeat them on fresh data before considering any trading use.</div>
+<button id="stability" class="secondary" style="margin-top:10px">Run Stability Test on Top Index</button><div id="stabilityStatus" class="status">Stability test not run.</div>
+<div id="stabilityResults" style="margin-top:12px;display:none"><div class="results">
+<div class="metric"><div class="small">Index tested</div><div id="stIndex" class="value">—</div></div>
+<div class="metric"><div class="small">Total signals</div><div id="stSignals" class="value">—</div></div>
+<div class="metric"><div class="small">Overall win rate</div><div id="stRate" class="value">—</div></div>
+<div class="metric"><div class="small">Median period rate</div><div id="stMedian" class="value">—</div></div>
+<div class="metric"><div class="small">Periods above 10%</div><div id="stAbove" class="value">—</div></div>
+<div class="metric"><div class="small">Stability score</div><div id="stScore" class="value">—</div></div>
+<div class="metric"><div class="small">Lowest period rate</div><div id="stLow" class="value">—</div></div>
+<div class="metric"><div class="small">Highest period rate</div><div id="stHigh" class="value">—</div></div>
+</div>
+<div class="small" style="margin-top:10px">The stability test divides the historical sample into five chronological periods and evaluates the same fixed rules in each period. No parameter tuning is performed between periods.</div>
+<h3>Chronological stability</h3><div class="tableWrap"><table><thead><tr><th>Period</th><th>Signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead><tbody id="stabilityLog"></tbody></table></div></div></div></div>
 <div class="card"><h3>Recent sample</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div></div>
 <div class="card warn"><strong>Important:</strong> A Matches win requires the predicted digit to equal the next tick's last digit. The confidence filter can skip weak setups, but it cannot create a guaranteed edge. This tool does not place trades. Backtest results can change substantially with new data, and payout/fees are not included in the win-rate calculation.</div></div>
 <script>
@@ -103,6 +116,26 @@ function evaluateOOS(data,settings){
  const points=Math.max(0,end-start),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;
  return {signals,wins,losses:signals-wins,rate,coverage,points,split};
 }
+function evaluateStability(data,settings){
+ const periods=5,maxW=250,startBase=Math.max(maxW,Math.floor(data.length*0.2));
+ const usableEnd=data.length,span=Math.floor((usableEnd-startBase)/periods),rows=[];
+ for(let k=0;k<periods;k++){
+   const start=startBase+k*span,end=(k===periods-1?usableEnd:start+span);
+   let wins=0,signals=0;
+   for(let i=Math.max(maxW,start);i<end;i++){
+     const p=confidencePoint(data,i,settings.primary,settings.minLead,settings.minFreq,settings.needAgreement);
+     if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++;
+   }
+   const points=Math.max(0,end-Math.max(maxW,start)),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;
+   rows.push({period:k+1,start,end,signals,wins,rate,coverage,points,lift:rate-10});
+ }
+ const totalSignals=rows.reduce((a,r)=>a+r.signals,0),totalWins=rows.reduce((a,r)=>a+r.wins,0);
+ const rates=rows.filter(r=>r.signals>0).map(r=>r.rate).sort((a,b)=>a-b);
+ const median=rates.length?(rates.length%2?rates[(rates.length-1)/2]:(rates[rates.length/2-1]+rates[rates.length/2])/2):0;
+ const above=rows.filter(r=>r.signals>0&&r.rate>10).length;
+ const stabilityScore=Math.round(above/periods*100);
+ return {rows,totalSignals,totalWins,overallRate:totalSignals?totalWins/totalSignals*100:0,median,above,stabilityScore,low:rates.length?rates[0]:0,high:rates.length?rates[rates.length-1]:0};
+}
 function fetchHistory(id,history){return new Promise((resolve,reject)=>{
  let localEp=0,socket=null,done=false,timer=null;
  const tryEndpoint=()=>{
@@ -119,7 +152,7 @@ function fetchHistory(id,history){return new Promise((resolve,reject)=>{
  tryEndpoint();
 });}
 async function scanAll(){
- if(scannerRunning)return;scannerRunning=true;$('scan').disabled=true;$('scanResults').style.display='none';
+ if(scannerRunning)return;scannerRunning=true;$('scan').disabled=true;$('stability').disabled=true;$('scanResults').style.display='none';
  const settings=getScanSettings(),results=[]; $('scanStatus').textContent=`Scanning ${SYMBOLS.length} synthetic indices…`;
  for(let i=0;i<SYMBOLS.length;i++){
   const s=SYMBOLS[i];$('scanStatus').textContent=`Scanning ${s.name} — ${i+1}/${SYMBOLS.length}…`;
@@ -128,7 +161,38 @@ async function scanAll(){
  }
  results.sort((a,b)=>{if(a.error&&!b.error)return 1;if(!a.error&&b.error)return -1;if(b.rate!==a.rate)return b.rate-a.rate;return b.signals-a.signals});
  $('scanLog').innerHTML=results.map((r,i)=>{const lift=r.rate-10;const status=r.error?'ERROR':(r.signals<30?'LOW SAMPLE':(r.rate>10?'ABOVE BASELINE':'AT/BELOW BASELINE'));return `<tr><td class="${i===0&&!r.error?'rank1':''}">${i+1}</td><td>${r.name}</td><td>${r.error?'—':r.signals}</td><td>${r.error?'—':r.wins}</td><td>${r.error?'—':r.rate.toFixed(2)+'%'}</td><td>${r.error?'—':r.coverage.toFixed(1)+'%'}</td><td class="${lift>=0?'positive':'negative'}">${r.error?'—':(lift>=0?'+':'')+lift.toFixed(2)+' pp'}</td><td>${status}</td></tr>`}).join('');
- $('scanStatus').textContent=`Scan complete — ranked ${results.filter(r=>!r.error).length} indices by out-of-sample win rate.`;$('scanResults').style.display='block';$('scan').disabled=false;scannerRunning=false;
+ window.lastScanResults=results;
+ $('scanStatus').textContent=`Scan complete — ranked ${results.filter(r=>!r.error).length} indices by out-of-sample win rate.`;$('scanResults').style.display='block';$('scan').disabled=false;$('stability').disabled=false;scannerRunning=false;
+}
+async function runStability(){
+ if(scannerRunning)return;
+ const ranked=(window.lastScanResults||[]).filter(r=>!r.error);
+ if(!ranked.length){$('stabilityStatus').textContent='Run the scanner first.';return}
+ const top=ranked[0],settings=getScanSettings();
+ scannerRunning=true;$('stability').disabled=true;$('scan').disabled=true;$('stabilityResults').style.display='none';
+ $('stabilityStatus').textContent=`Downloading a fresh ${settings.history}-tick sample for ${top.name}…`;
+ try{
+   const data=await fetchHistory(top.id,settings.history);
+   const st=evaluateStability(data,settings);
+   $('stIndex').textContent=top.name.replace('Volatility ','V').replace(' (1s)','');
+   $('stSignals').textContent=st.totalSignals;
+   $('stRate').textContent=st.overallRate.toFixed(2)+'%';
+   $('stMedian').textContent=st.median.toFixed(2)+'%';
+   $('stAbove').textContent=`${st.above}/5`;
+   $('stScore').textContent=st.stabilityScore+'%';
+   $('stLow').textContent=st.low.toFixed(2)+'%';
+   $('stHigh').textContent=st.high.toFixed(2)+'%';
+   $('stabilityLog').innerHTML=st.rows.map(r=>{
+     const status=r.signals<10?'LOW SAMPLE':(r.rate>10?'ABOVE BASELINE':'AT/BELOW BASELINE');
+     return `<tr><td>Period ${r.period}</td><td>${r.signals}</td><td>${r.wins}</td><td>${r.rate.toFixed(2)}%</td><td>${r.coverage.toFixed(1)}%</td><td class="${r.lift>=0?'positive':'negative'}">${r.lift>=0?'+':''}${r.lift.toFixed(2)} pp</td><td>${status}</td></tr>`;
+   }).join('');
+   $('stabilityStatus').textContent=`Stability test complete — ${st.above} of 5 periods were above the 10% baseline.`;
+   $('stabilityResults').style.display='block';
+ }catch(e){
+   $('stabilityStatus').textContent=`Stability test failed: ${e.message||'Unable to load data'}`;
+ }finally{
+   $('stability').disabled=false;$('scan').disabled=false;scannerRunning=false;
+ }
 }
 function send(o){if(!ws||ws.readyState!==1)throw Error('WebSocket is not open');ws.send(JSON.stringify(o))}
 function start(){
@@ -148,5 +212,5 @@ function openSocket(){
 }
 function nextEndpoint(){if(ep<ENDPOINTS.length-1){ep++;status('Trying Deriv public connection 2…');setTimeout(openSocket,300)}else fail('Could not connect to Deriv. Open this site directly in Safari and try again.')}
 function fail(m){connecting=false;status(m)}
-$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;$("scan").onclick=scanAll;render();
+$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;$("scan").onclick=scanAll;$("stability").onclick=runStability;render();
 </script></body></html>
