@@ -1,23 +1,35 @@
-<!--Github Pages refresh -->
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Digit Probability Analyzer</title>
+<!-- Github Pages refresh -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Digit Probability Analyzer + Matches Backtest</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:900px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}.muted{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px}button{cursor:pointer;background:#111827;color:#fff}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}@media(max-width:600px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}}
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1000px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}.muted{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px}button{cursor:pointer;background:#111827;color:#fff}.secondary{background:#344054}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}.win{font-weight:700}.loss{font-weight:700}.small{font-size:12px;color:#667085}@media(max-width:700px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}}
 </style></head><body><div class="wrap">
 <div class="card"><h1>Deriv Digit Probability Analyzer</h1><div class="muted">Read-only market-data analyzer. No login and no trades.</div>
 <div class="controls" style="margin-top:12px">
 <div><label>Symbol</label><select id="symbol"><option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ25V">Volatility 25 (1s)</option><option value="1HZ50V" selected>Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option></select></div>
-<div><label>Sample size</label><select id="count"><option value="50">50 ticks</option><option value="100" selected>100 ticks</option><option value="250">250 ticks</option><option value="500">500 ticks</option><option value="1000">1000 ticks</option></select></div>
+<div><label>Sample size</label><select id="count"><option value="100">100 ticks</option><option value="250">250 ticks</option><option value="500">500 ticks</option><option value="1000" selected>1000 ticks</option><option value="5000">5000 ticks</option></select></div>
 </div><button id="connect" style="margin-top:10px">Connect / Analyze</button><div id="status" class="status">Not connected.</div></div>
 <div class="card"><div class="muted">Highest observed frequency</div><div id="best" class="best">—</div><div id="summary" class="muted">Waiting for tick data.</div></div>
 <div class="card"><h3>Digits 0–9</h3><div id="digits" class="grid"></div></div>
+<div class="card"><h2 style="margin:0 0 6px">Matches Backtest</h2><div class="muted">Walk-forward test: use the previous ticks to select the most frequent digit, then check the next tick. No future data is used for each prediction.</div>
+<div class="controls" style="margin-top:12px">
+<div><label>Prediction window</label><select id="window"><option value="25">25 previous ticks</option><option value="50">50 previous ticks</option><option value="100" selected>100 previous ticks</option><option value="250">250 previous ticks</option></select></div>
+<div><label>Minimum history</label><div class="status" style="margin-top:0">Predictions start after the selected window.</div></div>
+</div><button id="backtest" class="secondary" style="margin-top:10px">Run Matches Backtest</button><div id="btStatus" class="status">Backtest not run.</div>
+<div id="btResults" style="margin-top:12px;display:none"><div class="results">
+<div class="metric"><div class="small">Predictions</div><div id="btPredictions" class="value">—</div></div>
+<div class="metric"><div class="small">Wins</div><div id="btWins" class="value">—</div></div>
+<div class="metric"><div class="small">Losses</div><div id="btLosses" class="value">—</div></div>
+<div class="metric"><div class="small">Win rate</div><div id="btRate" class="value">—</div></div>
+</div><div id="btDetail" class="muted" style="margin-top:10px"></div>
+<h3>Backtest prediction log</h3><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Window frequency</th></tr></thead><tbody id="btLog"></tbody></table></div></div>
 <div class="card"><h3>Recent sample</h3><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div>
-<div class="card warn"><strong>Important:</strong> Historical frequency is not a guarantee of the next digit.</div></div>
+<div class="card warn"><strong>Important:</strong> A Matches win requires the predicted digit to equal the next tick's last digit. A high historical frequency does not guarantee the next digit. The backtest is a research tool and does not place trades.</div></div>
 <script>
 const ENDPOINTS=["wss://api.derivws.com/trading/v1/options/ws/public","wss://ws.binaryws.com/websockets/v3"];
-let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=100,connecting=false;
+let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=1000,connecting=false;
 const $=id=>document.getElementById(id);
 function status(t){$("status").textContent=t}
-function digit(q,pipSize=2){let s=Number(q) .toFixed(pipSize);return s?s[s.length-1]*1:null}
+function digit(q,pipSize=2){let s=Number(q).toFixed(pipSize);return s?s[s.length-1]*1:null}
 function render(){
  const c=Array(10).fill(0);ticks.forEach(x=>{if(x.digit!=null)c[x.digit]++});
  const n=ticks.length;let b=0;for(let d=1;d<10;d++)if(c[d]>c[b])b=d;
@@ -26,9 +38,25 @@ function render(){
  $("digits").innerHTML=c.map((v,d)=>{let p=n?v/n*100:0;return `<div class="digit ${n&&d===b?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${p.toFixed(2)}%</div><div class="muted">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(p*2,100)}%"></div></div></div>`}).join("");
  $("recent").innerHTML=ticks.slice(-20).reverse().map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.digit}</strong></td><td>${x.quote}</td><td>${new Date(x.epoch*1000).toLocaleTimeString()}</td></tr>`).join("");
 }
+function mostFrequent(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});let b=0;for(let d=1;d<10;d++){if(c[d]>c[b])b=d}return {digit:b,count:c[b],total:arr.length,counts:c}}
+function runBacktest(){
+ const w=+$("window").value;
+ if(ticks.length<=w){$("btStatus").textContent=`Need more than ${w} ticks. Current sample: ${ticks.length}.`;$("btResults").style.display="none";return}
+ let wins=0,losses=0,rows=[];
+ for(let i=w;i<ticks.length;i++){
+   const history=ticks.slice(i-w,i), actual=ticks[i].digit, pick=mostFrequent(history);
+   const win=pick.digit===actual;if(win)wins++;else losses++;
+   if(rows.length<100)rows.push({n:i-w+1,pred:pick.digit,actual,result:win?"WIN":"LOSS",freq:`${pick.count}/${w} (${(pick.count/w*100).toFixed(1)}%)`});
+ }
+ const predictions=wins+losses,rate=predictions?wins/predictions*100:0;
+ $("btPredictions").textContent=predictions;$("btWins").textContent=wins;$("btLosses").textContent=losses;$("btRate").textContent=rate.toFixed(2)+"%";
+ $("btDetail").textContent=`${symbol}: ${predictions} walk-forward predictions using a ${w}-tick frequency window. Random 10-digit baseline is about 10%, before considering contract payout and fees.`;
+ $("btLog").innerHTML=rows.map(r=>`<tr><td>${r.n}</td><td><strong>${r.pred}</strong></td><td>${r.actual}</td><td class="${r.result==="WIN"?"win":"loss"}">${r.result}</td><td>${r.freq}</td></tr>`).join("");
+ $("btStatus").textContent=`Backtest complete — ${predictions} predictions.`;$("btResults").style.display="block";
+}
 function send(o){if(!ws||ws.readyState!==1)throw Error("WebSocket is not open");ws.send(JSON.stringify(o))}
 function start(){
- symbol=$("symbol").value;count=+$("count").value;ticks=[];render();
+ symbol=$("symbol").value;count=+$("count").value;ticks=[];render();$("btResults").style.display="none";$("btStatus").textContent="Backtest not run.";
  if(ws)try{ws.close()}catch(e){}
  ep=0;openSocket();
 }
@@ -56,10 +84,7 @@ function openSocket(){
  ws.onerror=()=>{clearTimeout(timer);if(connecting)nextEndpoint();else fail("Connection error.")};
  ws.onclose=()=>{if(connecting)return;if(!$("status").textContent.startsWith("LIVE"))nextEndpoint()};
 }
-function nextEndpoint(){
- if(ep<ENDPOINTS.length-1){ep++;status("Trying Deriv public connection 2…");setTimeout(openSocket,300)}
- else fail("Could not connect to Deriv. Open this site directly in Safari and try again.");
-}
+function nextEndpoint(){if(ep<ENDPOINTS.length-1){ep++;status("Trying Deriv public connection 2…");setTimeout(openSocket,300)}else fail("Could not connect to Deriv. Open this site directly in Safari and try again.")}
 function fail(m){connecting=false;status(m)}
-$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;render();
+$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;render();
 </script></body></html>
