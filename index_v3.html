@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Digit Probability Analyzer</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:900px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}.muted{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px}button{cursor:pointer;background:#111827;color:#fff}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}@media(max-width:600px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><div class="wrap">
+<div class="card"><h1>Deriv Digit Probability Analyzer</h1><div class="muted">Read-only market-data analyzer. No login and no trades.</div>
+<div class="controls" style="margin-top:12px">
+<div><label>Symbol</label><select id="symbol"><option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ25V">Volatility 25 (1s)</option><option value="1HZ50V" selected>Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option></select></div>
+<div><label>Sample size</label><select id="count"><option value="50">50 ticks</option><option value="100" selected>100 ticks</option><option value="250">250 ticks</option><option value="500">500 ticks</option><option value="1000">1000 ticks</option></select></div>
+</div><button id="connect" style="margin-top:10px">Connect / Analyze</button><div id="status" class="status">Not connected.</div></div>
+<div class="card"><div class="muted">Highest observed frequency</div><div id="best" class="best">—</div><div id="summary" class="muted">Waiting for tick data.</div></div>
+<div class="card"><h3>Digits 0–9</h3><div id="digits" class="grid"></div></div>
+<div class="card"><h3>Recent sample</h3><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div>
+<div class="card warn"><strong>Important:</strong> Historical frequency is not a guarantee of the next digit.</div></div>
+<script>
+const ENDPOINTS=["wss://api.derivws.com/trading/v1/options/ws/public","wss://ws.binaryws.com/websockets/v3"];
+let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=100,connecting=false;
+const $=id=>document.getElementById(id);
+function status(t){$("status").textContent=t}
+function digit(q){let s=String(q).replace(/[^0-9]/g,"");return s?+s[s.length-1]:null}
+function render(){
+ const c=Array(10).fill(0);ticks.forEach(x=>{if(x.digit!=null)c[x.digit]++});
+ const n=ticks.length;let b=0;for(let d=1;d<10;d++)if(c[d]>c[b])b=d;
+ $("best").textContent=n?`Digit ${b} — ${(c[b]/n*100).toFixed(2)}%`:"—";
+ $("summary").textContent=n?`${n} ticks analyzed. Highest observed frequency: digit ${b}.`:"Waiting for tick data.";
+ $("digits").innerHTML=c.map((v,d)=>{let p=n?v/n*100:0;return `<div class="digit ${n&&d===b?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${p.toFixed(2)}%</div><div class="muted">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(p*2,100)}%"></div></div></div>`}).join("");
+ $("recent").innerHTML=ticks.slice(-20).reverse().map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.digit}</strong></td><td>${x.quote}</td><td>${new Date(x.epoch*1000).toLocaleTimeString()}</td></tr>`).join("");
+}
+function send(o){if(!ws||ws.readyState!==1)throw Error("WebSocket is not open");ws.send(JSON.stringify(o))}
+function start(){
+ symbol=$("symbol").value;count=+$("count").value;ticks=[];render();
+ if(ws)try{ws.close()}catch(e){}
+ ep=0;openSocket();
+}
+function openSocket(){
+ connecting=true;status("Connecting to Deriv market data…");
+ let timer;
+ try{ws=new WebSocket(ENDPOINTS[ep])}catch(e){nextEndpoint();return}
+ timer=setTimeout(()=>{if(connecting){try{ws.close()}catch(e){};nextEndpoint()}},7000);
+ ws.onopen=()=>{clearTimeout(timer);connecting=false;status("Connected. Requesting tick history…");try{send({ticks_history:symbol,count:count,end:"latest",style:"ticks",req_id:1})}catch(e){fail(e.message)}};
+ ws.onmessage=e=>{
+  let d;try{d=JSON.parse(e.data)}catch(_){return}
+  if(d.error){fail("Deriv error: "+(d.error.message||"Unknown error"));return}
+  if(d.msg_type==="history"&&d.history){
+   let p=d.history.prices||[],t=d.history.times||[];
+   ticks=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q)})).filter(x=>x.digit!=null);
+   render();
+   try{send({ticks:symbol,subscribe:1,req_id:2});status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}catch(e){fail(e.message)}
+   return;
+  }
+  if(d.msg_type==="tick"&&d.tick){
+   let q=d.tick.quote,x={quote:q,epoch:d.tick.epoch,digit:digit(q)};
+   if(x.digit!=null){ticks.push(x);if(ticks.length>count)ticks.shift();render();status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}
+  }
+ };
+ ws.onerror=()=>{clearTimeout(timer);if(connecting)nextEndpoint();else fail("Connection error.")};
+ ws.onclose=()=>{if(connecting)return;if(!$("status").textContent.startsWith("LIVE"))nextEndpoint()};
+}
+function nextEndpoint(){
+ if(ep<ENDPOINTS.length-1){ep++;status("Trying Deriv public connection 2…");setTimeout(openSocket,300)}
+ else fail("Could not connect to Deriv. Open this site directly in Safari and try again.");
+}
+function fail(m){connecting=false;status(m)}
+$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;render();
+</script></body></html>
