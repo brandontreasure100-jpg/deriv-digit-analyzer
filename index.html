@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Deriv Digit Analyzer — Rolling Walk-Forward v7.0</title>
+<title>Deriv Digit Analyzer — Rolling Walk-Forward v9.0</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}h2{margin:0 0 6px}.muted,.small{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px}button{cursor:pointer;background:#111827;color:#fff}.secondary{background:#344054}.scan{background:#175cd3}button:disabled{opacity:.55;cursor:not-allowed}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}.win,.pass{font-weight:700}.loss,.fail{font-weight:700}.rank1{font-weight:700}.tableWrap{overflow-x:auto}.error{background:#fff0f0}.good{background:#eefbf3}@media(max-width:700px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}th,td{font-size:12px}}
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}h2{margin:0 0 6px}.muted,.small{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button,input{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px;box-sizing:border-box}button{cursor:pointer;background:#111827;color:#fff}.secondary{background:#344054}.scan{background:#175cd3}button:disabled{opacity:.55;cursor:not-allowed}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}.win,.pass{font-weight:700}.loss,.fail{font-weight:700}.rank1{font-weight:700}.tableWrap{overflow-x:auto}.error{background:#fff0f0}.good{background:#eefbf3}@media(max-width:700px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}th,td{font-size:12px}}
 </style>
 </head>
 <body><div class="wrap">
@@ -19,17 +19,148 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 <div class="small" style="margin-top:10px">The primary window must meet the frequency + lead thresholds, and the selected number of 25/50/100/250-tick windows must agree on the same digit.</div><button id="backtest" class="secondary" style="margin-top:10px">Run Confidence Matches Backtest</button><div id="btStatus" class="status">Backtest not run.</div>
 <div id="btResults" style="margin-top:12px;display:none"><div class="results"><div class="metric"><div class="small">Signals</div><div id="btPredictions" class="value">—</div></div><div class="metric"><div class="small">Wins</div><div id="btWins" class="value">—</div></div><div class="metric"><div class="small">Losses</div><div id="btLosses" class="value">—</div></div><div class="metric"><div class="small">Win rate</div><div id="btRate" class="value">—</div></div><div class="metric"><div class="small">Skipped</div><div id="btSkipped" class="value">—</div></div><div class="metric"><div class="small">Coverage</div><div id="btCoverage" class="value">—</div></div><div class="metric"><div class="small">Random baseline</div><div class="value">10%</div></div><div class="metric"><div class="small">Win-rate lift</div><div id="btLift" class="value">—</div></div></div><div id="btDetail" class="muted" style="margin-top:10px"></div><h3>Confidence prediction log</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Primary freq.</th><th>Lead</th><th>Agreement</th></tr></thead><tbody id="btLog"></tbody></table></div></div></div>
 
-<div class="card"><h2>Automatic Synthetic-Index Scanner — Rolling Walk-Forward v7.0</h2><div class="muted">Uses the same fixed Matches confidence rules across unseen test folds. Historical data is downloaded in safe 1,000-tick chunks using Deriv's documented public market-data WebSocket protocol. Each API request opens its own socket and sends only after onopen.</div>
+
+<div class="card">
+  <h2>Deriv API Connection</h2>
+  <div class="muted">
+    Optional authenticated mode. Enter your Deriv Personal Access Token (PAT) and App ID only on this page.
+    The token is kept in memory for this browser session and is never written into this HTML file or GitHub.
+  </div>
+  <div class="controls" style="margin-top:12px">
+    <div>
+      <label>Deriv App ID</label>
+      <input id="apiAppId" type="text" autocomplete="off" placeholder="Your Deriv App ID"
+        style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd3df;border-radius:9px;font-size:15px">
+    </div>
+    <div>
+      <label>Personal Access Token (PAT)</label>
+      <input id="apiToken" type="password" autocomplete="off" placeholder="Paste PAT here"
+        style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd3df;border-radius:9px;font-size:15px">
+    </div>
+    <div>
+      <label>Account</label>
+      <select id="apiAccount">
+        <option value="">Load accounts first</option>
+      </select>
+    </div>
+    <div>
+      <label>API mode</label>
+      <select id="apiMode">
+        <option value="public" selected>Public market data</option>
+        <option value="authenticated">Authenticated with my PAT</option>
+      </select>
+    </div>
+  </div>
+  <div class="controls" style="margin-top:10px">
+    <button id="loadAccounts" class="secondary">Load My Deriv Accounts</button>
+    <button id="clearApi" class="secondary">Clear Token / Disconnect</button>
+  </div>
+  <div id="apiStatus" class="status">Public mode is active. No token is required for market-data-only requests.</div>
+  <div class="small" style="margin-top:6px">
+    Authenticated mode uses Deriv's REST OTP flow to obtain a short-lived authenticated WebSocket URL for the selected account.
+    Your PAT is not saved in localStorage or embedded in the page.
+  </div>
+</div>
+<div class="card"><h2>Automatic Synthetic-Index Scanner — Rolling Walk-Forward v9.0</h2><div class="muted">Uses the same fixed Matches confidence rules across unseen test folds. Historical data is downloaded in safe 1,000-tick chunks using Deriv's documented public market-data WebSocket protocol. Each API request opens its own socket and sends only after onopen.</div>
 <div class="controls" style="margin-top:12px"><div><label>Total scanner history</label><select id="scanCount"><option value="5000">5,000 ticks</option><option value="10000" selected>10,000 ticks</option><option value="15000">15,000 ticks</option></select></div><div><label>Training window</label><select id="trainSize"><option value="1500" selected>1,500 ticks</option><option value="2000">2,000 ticks</option><option value="3000">3,000 ticks</option></select></div><div><label>Test window per fold</label><select id="testSize"><option value="500" selected>500 ticks</option><option value="750">750 ticks</option><option value="1000">1,000 ticks</option></select></div><div><label>Minimum signals per fold</label><select id="minFoldSignals"><option value="5">5 signals</option><option value="10" selected>10 signals</option><option value="15">15 signals</option></select></div><div><label>Minimum total OOS signals</label><select id="minTotalSignals"><option value="50">50 signals</option><option value="75" selected>75 signals</option><option value="100">100 signals</option></select></div><div><label>Required folds above 10%</label><select id="requiredFolds"><option value="0.50">50% of usable folds</option><option value="0.60" selected>60% of usable folds</option><option value="0.70">70% of usable folds</option></select></div></div>
-<button id="scan" class="scan" style="margin-top:10px">Run Rolling Walk-Forward Scan</button><div id="scanStatus" class="status">Scanner not run.</div>
+<button id="scan" class="scan" style="margin-top:10px">Run Rolling Walk-Forward Scan</button><div id="scanStatus" class="status">Scanner not run.</div><div class="small" style="margin-top:6px">v9 supports public market data or authenticated PAT mode. Authenticated mode uses a fresh OTP WebSocket URL for each API request.</div>
 <div id="scanResults" style="margin-top:12px;display:none"><div class="small" style="margin-bottom:8px"><b>Research gate:</b> enough total OOS signals, overall win rate above 10%, and the required share of usable folds above 10%. No candidate is selected just because it ranks highest.</div><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>OOS wins</th><th>OOS rate</th><th>Coverage</th><th>Folds</th><th>Above 10%</th><th>Max loss streak</th><th>Max DD</th><th>Score</th><th>Gate</th></tr></thead><tbody id="scanLog"></tbody></table></div><h3 style="margin-top:16px">Fold-by-fold validation</h3><div class="tableWrap"><table><thead><tr><th>Fold</th><th>Test ticks</th><th>Signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead><tbody id="foldLog"></tbody></table></div><button id="stability" class="secondary" style="margin-top:10px">Run Fresh Holdout on Selected Index</button><div id="stabilityStatus" class="status">Fresh holdout not run.</div><div id="stabilityResults" style="margin-top:12px;display:none"><div class="results"><div class="metric"><div class="small">Selected index</div><div id="stIndex" class="value">—</div></div><div class="metric"><div class="small">Fresh signals</div><div id="stSignals" class="value">—</div></div><div class="metric"><div class="small">Fresh wins</div><div id="stWins" class="value">—</div></div><div class="metric"><div class="small">Fresh rate</div><div id="stRate" class="value">—</div></div><div class="metric"><div class="small">Coverage</div><div id="stCoverage" class="value">—</div></div><div class="metric"><div class="small">Max loss streak</div><div id="stLossStreak" class="value">—</div></div><div class="metric"><div class="small">Max drawdown</div><div id="stDrawdown" class="value">—</div></div><div class="metric"><div class="small">Final decision</div><div id="stDecision" class="value">—</div></div></div><div id="stabilityDetail" class="muted" style="margin-top:10px"></div></div></div></div>
 <div class="card"><h3>Recent sample</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div></div>
 <div class="card warn"><strong>Important:</strong> This is research software, not a guarantee of profit. A Matches win requires the predicted digit to equal the next tick's last digit. The confidence filter can skip weak setups, but it cannot create a guaranteed edge. Payouts, fees and execution effects are not included.</div>
 </div>
 <script>
-const DATA_WS="wss://ws.binaryws.com/websockets/v3";
+const DATA_WS_CANDIDATES=[
+  "wss://api.derivws.com/trading/v1/options/ws/public",
+  "wss://ws.binaryws.com/websockets/v3"
+];
 const SYMBOLS=[{id:"1HZ10V",name:"Volatility 10 (1s)"},{id:"1HZ25V",name:"Volatility 25 (1s)"},{id:"1HZ50V",name:"Volatility 50 (1s)"},{id:"1HZ75V",name:"Volatility 75 (1s)"},{id:"1HZ100V",name:"Volatility 100 (1s)"}];
-let ws=null,ticks=[],symbol="1HZ50V",count=1000,reqSeq=10,scannerRunning=false,activeEndpoint=DATA_WS;window.selectedRolling=null;const $=id=>document.getElementById(id);
+let ws=null,ticks=[],symbol="1HZ50V",count=1000,reqSeq=10,scannerRunning=false,activeEndpoint=DATA_WS_CANDIDATES[0];window.selectedRolling=null;
+const $=id=>document.getElementById(id);
+
+const API_BASE="https://api.derivws.com";
+let apiAuth={appId:"",token:"",accountId:"",wsUrl:""};
+let apiBusy=false;
+
+function apiMode(){
+  return $("apiMode")?.value==="authenticated";
+}
+function setApiStatus(msg,ok=false){
+  const el=$("apiStatus");
+  if(!el)return;
+  el.textContent=msg;
+  el.style.background=ok?"#eefbf3":"#eef2ff";
+}
+function clearApiCredentials(){
+  apiAuth={appId:"",token:"",accountId:"",wsUrl:""};
+  if($("apiToken"))$("apiToken").value="";
+  if($("apiAppId"))$("apiAppId").value="";
+  if($("apiAccount"))$("apiAccount").innerHTML='<option value="">Load accounts first</option>';
+  if($("apiMode"))$("apiMode").value="public";
+  setApiStatus("Credentials cleared. Public market-data mode is active.");
+}
+async function apiFetch(path,options={}){
+  const appId=$("apiAppId")?.value.trim();
+  const token=$("apiToken")?.value.trim();
+  if(!appId||!token)throw new Error("Enter both your Deriv App ID and Personal Access Token.");
+  const headers={
+    "Deriv-App-ID":appId,
+    "Authorization":`Bearer ${token}`,
+    ...(options.headers||{})
+  };
+  const r=await fetch(API_BASE+path,{...options,headers});
+  let body=null;
+  try{body=await r.json()}catch(_){}
+  if(!r.ok){
+    const msg=body?.errors?.[0]?.message||body?.message||`HTTP ${r.status}`;
+    throw new Error(`Deriv API rejected the request: ${msg}`);
+  }
+  return body;
+}
+async function loadAccounts(){
+  if(apiBusy)return;
+  apiBusy=true;
+  try{
+    setApiStatus("Checking your PAT and loading Deriv accounts…");
+    const body=await apiFetch("/trading/v1/options/accounts",{method:"GET"});
+    const raw=Array.isArray(body?.data)?body.data:
+      Array.isArray(body?.accounts)?body.accounts:
+      Array.isArray(body)?body:[];
+    const accounts=raw.map(a=>({
+      id:a.account_id||a.accountId||a.id||a.loginid||"",
+      type:a.account_type||a.type||"",
+      currency:a.currency||""
+    })).filter(a=>a.id);
+    const sel=$("apiAccount");
+    sel.innerHTML="";
+    if(!accounts.length)throw new Error("Your PAT was accepted, but no Options accounts were returned.");
+    accounts.forEach((a,i)=>{
+      const o=document.createElement("option");
+      o.value=a.id;
+      o.textContent=`${a.id}${a.type?` — ${a.type}`:""}${a.currency?` — ${a.currency}`:""}`;
+      sel.appendChild(o);
+    });
+    apiAuth.appId=$("apiAppId").value.trim();
+    apiAuth.token=$("apiToken").value.trim();
+    apiAuth.accountId=sel.value;
+    setApiStatus(`Authenticated successfully. ${accounts.length} account(s) loaded. Select an account and switch API mode to authenticated.`,true);
+  }catch(e){
+    setApiStatus(`API connection failed: ${e.message}`);
+  }finally{apiBusy=false}
+}
+async function getAuthenticatedWsUrl(){
+  const appId=$("apiAppId")?.value.trim();
+  const token=$("apiToken")?.value.trim();
+  const accountId=$("apiAccount")?.value;
+  if(!appId||!token||!accountId){
+    throw new Error("Authenticated mode requires App ID, PAT, and a selected account. Click “Load My Deriv Accounts” first.");
+  }
+  apiAuth={appId,token,accountId,wsUrl:""};
+  const body=await apiFetch(`/trading/v1/options/accounts/${encodeURIComponent(accountId)}/otp`,{method:"POST"});
+  const url=body?.data?.url||body?.url;
+  if(!url)throw new Error("Deriv did not return an authenticated WebSocket URL.");
+  return url;
+}
+
 function digit(q,pipSize){const p=Number.isFinite(Number(pipSize))?Number(pipSize):2;const s=Number(q).toFixed(p);return s?s[s.length-1]*1:null}
 function render(){const c=Array(10).fill(0);ticks.forEach(x=>{if(x.digit!=null)c[x.digit]++});const n=ticks.length;let b=0;for(let d=1;d<10;d++)if(c[d]>c[b])b=d;$('best').textContent=n?`Digit ${b} — ${(c[b]/n*100).toFixed(2)}%`:'—';$('summary').textContent=n?`${n} ticks analyzed. Highest observed frequency: digit ${b}.`:'Waiting for tick data.';$('digits').innerHTML=c.map((v,d)=>{const p=n?v/n*100:0;return `<div class="digit ${n&&d===b?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${p.toFixed(2)}%</div><div class="muted">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(p*2,100)}%"></div></div></div>`}).join('');$('recent').innerHTML=ticks.slice(-20).reverse().map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.digit}</strong></td><td>${x.quote}</td><td>${new Date(x.epoch*1000).toLocaleTimeString()}</td></tr>`).join('')}
 function windowStats(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});const order=[0,1,2,3,4,5,6,7,8,9].sort((a,b)=>c[b]-c[a]);const top=order[0],second=order[1],total=arr.length;return{digit:top,count:c[top],total,frequency:total?c[top]/total:0,second,secondFrequency:total?c[second]/total:0,lead:total?(c[top]-c[second])/total:0}}
@@ -41,7 +172,75 @@ function rollingValidation(data,s){const folds=[];let testStart=s.trainSize,fold
 // One request = one fresh socket. This avoids the v5/v6 bug where a socket was already OPEN
 // before onopen was assigned, so the request was never sent. Legacy public market-data API
 // also does not accept subscribe:0; we simply omit subscribe for one-shot history requests.
-function derivRequest(payload, expectedType, timeoutMs=15000){return new Promise((resolve,reject)=>{let sock,done=false,timer;const reqId=++reqSeq;const req={...payload,req_id:reqId};const finish=(err,data)=>{if(done)return;done=true;clearTimeout(timer);try{if(sock)sock.close()}catch(_){}err?reject(err):resolve(data)};try{sock=new WebSocket(DATA_WS)}catch(e){finish(new Error(`Browser could not open Deriv WebSocket: ${e.message}`));return}timer=setTimeout(()=>finish(new Error(`Deriv request timed out after ${timeoutMs/1000}s.`)),timeoutMs);sock.onopen=()=>{try{sock.send(JSON.stringify(req))}catch(e){finish(new Error(`Could not send Deriv request: ${e.message}`))}};sock.onmessage=ev=>{let d;try{d=JSON.parse(ev.data)}catch(_){return}if(d.req_id!==undefined&&Number(d.req_id)!==reqId)return;if(d.error){finish(new Error(`Deriv API error ${d.error.code||'UNKNOWN'} — ${d.error.message||'Unknown error'}`));return}if(d.msg_type===expectedType)finish(null,d)};sock.onerror=()=>finish(new Error('Deriv WebSocket connection failed. Check the internet connection or whether this network blocks WebSockets.'));sock.onclose=ev=>{if(!done)finish(new Error(`Deriv WebSocket closed before ${expectedType} response (code ${ev.code}${ev.reason?`, ${ev.reason}`:''}).`))}})}
+async function derivRequest(payload, expectedType, timeoutMs=20000){
+  if(apiMode()){
+    const endpoint=await getAuthenticatedWsUrl();
+    try{
+      const data=await derivRequestOnEndpoint(endpoint,payload,expectedType,timeoutMs);
+      activeEndpoint="authenticated WebSocket";
+      return data;
+    }catch(e){
+      throw new Error(`Authenticated WebSocket request failed: ${e.message}`);
+    }
+  }
+
+  let lastError=null;
+  for(const endpoint of DATA_WS_CANDIDATES){
+    try{
+      const data=await derivRequestOnEndpoint(endpoint,payload,expectedType,timeoutMs);
+      activeEndpoint=endpoint;
+      return data;
+    }catch(e){lastError=e}
+  }
+  throw new Error(
+    `Unable to reach Deriv market-data WebSocket. Tried ${DATA_WS_CANDIDATES.length} public endpoints. ` +
+    `${lastError?.message||"Unknown connection error"}`
+  );
+}
+function derivRequestOnEndpoint(endpoint,payload,expectedType,timeoutMs){
+  return new Promise((resolve,reject)=>{
+    let sock=null,done=false,timer=null;
+    const reqId=++reqSeq;
+    const req={...payload,req_id:reqId};
+
+    const finish=(err,data)=>{
+      if(done)return;
+      done=true;
+      if(timer)clearTimeout(timer);
+      try{if(sock)sock.close()}catch(_){}
+      err?reject(err):resolve(data);
+    };
+
+    try{sock=new WebSocket(endpoint)}
+    catch(e){finish(new Error(`Browser could not open ${endpoint}: ${e.message}`));return}
+
+    timer=setTimeout(()=>finish(new Error(
+      `Connection to ${endpoint} timed out after ${timeoutMs/1000}s.`
+    )),timeoutMs);
+
+    sock.onopen=()=>{
+      try{sock.send(JSON.stringify(req))}
+      catch(e){finish(new Error(`Could not send request: ${e.message}`))}
+    };
+    sock.onmessage=ev=>{
+      let d;
+      try{d=JSON.parse(ev.data)}catch(_){return}
+      if(d.req_id!==undefined && Number(d.req_id)!==reqId)return;
+      if(d.error){
+        finish(new Error(`Deriv API error ${d.error.code||"UNKNOWN"} — ${d.error.message||"Unknown error"}`));
+        return;
+      }
+      if(d.msg_type===expectedType)finish(null,d);
+    };
+    sock.onerror=()=>finish(new Error(`WebSocket connection failed at ${endpoint}.`));
+    sock.onclose=ev=>{
+      if(!done)finish(new Error(
+        `WebSocket closed before the ${expectedType} response ` +
+        `(code ${ev.code}${ev.reason?`, ${ev.reason}`:""}).`
+      ));
+    };
+  });
+}
 async function verifySymbols(){const d=await derivRequest({active_symbols:'brief',product_type:'basic'},'active_symbols',15000);const ids=new Set((d.active_symbols||[]).map(x=>x.symbol||x.underlying_symbol).filter(Boolean));const missing=SYMBOLS.filter(x=>!ids.has(x.id)).map(x=>x.id);return{ids,missing}}
 async function requestHistory(sym,n,endValue){const d=await derivRequest({ticks_history:sym,count:n,end:endValue,style:'ticks'},'history',20000);const prices=Array.isArray(d.history?.prices)?d.history.prices:[],times=Array.isArray(d.history?.times)?d.history.times:[],pip=Number(d.pip_size??2);const data=prices.map((q,i)=>({quote:q,epoch:times[i],digit:digit(q,pip)})).filter(x=>Number.isFinite(Number(x.epoch))&&x.digit!=null);if(!data.length)throw new Error(`Deriv returned no usable history for ${sym}.`);return data}
 async function fetchHistory(sym,target){const chunk=1000;let all=[],end='latest',loops=0;while(all.length<target&&loops<Math.ceil(target/chunk)+3){loops++;const need=Math.min(chunk,target-all.length);const part=await requestHistory(sym,need,end);if(!part.length)break;all=part.concat(all);const oldest=Math.min(...part.map(x=>Number(x.epoch)).filter(Number.isFinite));if(!Number.isFinite(oldest)||part.length<need)break;end=String(Math.max(0,Math.floor(oldest)-1));await new Promise(r=>setTimeout(r,100))}const seen=new Set();all=all.filter(x=>{const k=`${x.epoch}|${x.quote}`;if(seen.has(k))return false;seen.add(k);return true});all.sort((a,b)=>Number(a.epoch)-Number(b.epoch));if(all.length>target)all=all.slice(-target);if(all.length<Math.min(target,500))throw new Error(`Only ${all.length} usable ticks returned; need more history.`);return all}
@@ -51,4 +250,18 @@ async function requestLiveHistory(){const d=await derivRequest({ticks_history:sy
 async function start(){symbol=$("symbol").value;count=+$("count").value;ticks=[];render();$("btResults").style.display="none";$("status").textContent="Connecting to Deriv public market data…";try{ticks=await requestLiveHistory();render();$("status").textContent=`Connected via ${activeEndpoint} — ${ticks.length}/${count} historical ticks loaded.`}catch(e){$("status").textContent=`Deriv connection error: ${e.message}`}}
 function runBacktest(){const primary=+$("window").value,minLead=+$("minLead").value,minFreq=+$("minFreq").value,needAgreement=+$("agreement").value;if(ticks.length<=250){$("btStatus").textContent=`Need more than 250 ticks. Current sample: ${ticks.length}.`;$("btResults").style.display="none";return}let wins=0,losses=0,skipped=0,rows=[];for(let i=250;i<ticks.length;i++){const p=confidencePoint(ticks,i,primary,minLead,minFreq,needAgreement);if(!p.qualifies){skipped++;continue}const actual=ticks[i].digit,win=p.pred===actual;if(win)wins++;else losses++;if(rows.length<150)rows.push({n:i-249,pred:p.pred,actual,result:win?"WIN":"LOSS",freq:`${(p.freq*100).toFixed(1)}%`,lead:`${(p.lead*100).toFixed(1)}%`,agreement:`${p.agreement}/4`})}const signals=wins+losses,total=ticks.length-250,rate=signals?wins/signals*100:0,coverage=total?signals/total*100:0,lift=rate-10;$("btPredictions").textContent=signals;$("btWins").textContent=wins;$("btLosses").textContent=losses;$("btRate").textContent=rate.toFixed(2)+"%";$("btSkipped").textContent=skipped;$("btCoverage").textContent=coverage.toFixed(2)+"%";$("btLift").textContent=(lift>=0?"+":"")+lift.toFixed(2)+" pp";$("btDetail").textContent=`${symbol}: ${signals} qualified signals from ${total} possible prediction points.`;$("btLog").innerHTML=rows.map(r=>`<tr><td>${r.n}</td><td><strong>${r.pred}</strong></td><td>${r.actual}</td><td class="${r.result==='WIN'?'win':'loss'}">${r.result}</td><td>${r.freq}</td><td>${r.lead}</td><td>${r.agreement}</td></tr>`).join("");$("btStatus").textContent=`Confidence backtest complete — ${signals} signals, ${skipped} skipped.`;$("btResults").style.display="block"}
 $("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;$("scan").onclick=scanAll;$("stability").onclick=runStability;render();
+
+$("loadAccounts")?.addEventListener("click",loadAccounts);
+$("clearApi")?.addEventListener("click",clearApiCredentials);
+$("apiMode")?.addEventListener("change",()=>{
+  if(apiMode()){
+    setApiStatus("Authenticated mode selected. Load your accounts before running the scanner.");
+  }else{
+    setApiStatus("Public mode is active. No token is required for market-data-only requests.");
+  }
+});
+$("apiAccount")?.addEventListener("change",()=>{
+  apiAuth.accountId=$("apiAccount").value;
+});
+
 </script></body></html>
