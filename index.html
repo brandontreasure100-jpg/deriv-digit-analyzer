@@ -71,194 +71,102 @@ th,td{padding:10px;border-bottom:1px solid #e3e7ed;text-align:left}
 </div>
 
 <script>
-"use strict";
-
-const INDICES=[
-  {symbol:"1HZ10V",name:"Volatility 10 (1s)"},
-  {symbol:"1HZ25V",name:"Volatility 25 (1s)"},
-  {symbol:"1HZ50V",name:"Volatility 50 (1s)"},
-  {symbol:"1HZ75V",name:"Volatility 75 (1s)"},
-  {symbol:"1HZ100V",name:"Volatility 100 (1s)"}
+const SYMBOLS=[
+ ['1HZ10V','Volatility 10 (1s)'],['1HZ25V','Volatility 25 (1s)'],
+ ['1HZ50V','Volatility 50 (1s)'],['1HZ75V','Volatility 75 (1s)'],
+ ['1HZ100V','Volatility 100 (1s)']
 ];
+const APP_ID=1089;
+const ENDPOINT=`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+let socket=null, timer=null;
 
-const WS_URL="wss://ws.binaryws.com/websockets/v3";
-
-function lastDigit(quote){
-  const s=String(quote);
-  const dot=s.indexOf(".");
-  if(dot>=0){
-    const decimals=s.slice(dot+1).replace(/[^0-9]/g,"");
-    if(decimals.length) return Number(decimals.slice(-1));
+function setStatus(text){document.getElementById('status').textContent=text;}
+function digitFromPrice(value){
+  const s=String(value);
+  const p=s.indexOf('.');
+  if(p>=0){const d=s.slice(p+1).replace(/\D/g,''); if(d)return +d.slice(-1);}
+  const d=s.replace(/\D/g,''); return d?+d.slice(-1):NaN;
+}
+function openSocket(){
+ return new Promise((resolve,reject)=>{
+  let done=false;
+  socket=new WebSocket(ENDPOINT);
+  const finish=(fn,v)=>{if(done)return;done=true;clearTimeout(timer);fn(v)};
+  timer=setTimeout(()=>{try{socket.close()}catch(e){};finish(reject,new Error('Deriv did not accept the WebSocket connection.'))},10000);
+  socket.onopen=()=>{finish(resolve,socket);};
+  socket.onerror=()=>finish(reject,new Error('Deriv WebSocket connection failed.'));
+  socket.onclose=()=>{if(!done)finish(reject,new Error('Deriv WebSocket closed before connecting.'))};
+ });
+}
+function request(ws,payload,reqId){
+ return new Promise((resolve,reject)=>{
+  const timeout=setTimeout(()=>{cleanup();reject(new Error('Deriv request timed out.'))},12000);
+  function cleanup(){clearTimeout(timeout);ws.removeEventListener('message',onmsg)}
+  function onmsg(ev){
+   let d;try{d=JSON.parse(ev.data)}catch(e){return}
+   if(d.req_id!==reqId)return;
+   cleanup();
+   if(d.error)reject(new Error(d.error.message||'Deriv rejected the request.')); else resolve(d);
   }
-  const digits=s.replace(/[^0-9]/g,"");
-  return digits.length ? Number(digits.slice(-1)) : NaN;
+  ws.addEventListener('message',onmsg);
+  ws.send(JSON.stringify({...payload,req_id:reqId}));
+ });
 }
-
-function getHistories(indices,count){
-  return new Promise((resolve,reject)=>{
-    let ws;
-    let finished=false;
-    const received={};
-    const timer=setTimeout(()=>{
-      if(finished)return;
-      finished=true;
-      try{ws.close()}catch(e){}
-      reject(new Error("Deriv connection timed out after 30 seconds."));
-    },30000);
-
-    function fail(message){
-      if(finished)return;
-      finished=true;
-      clearTimeout(timer);
-      try{ws.close()}catch(e){}
-      reject(new Error(message));
-    }
-
-    try{
-      ws=new WebSocket(WS_URL);
-    }catch(e){
-      fail("This browser could not open the Deriv WebSocket.");
-      return;
-    }
-
-    ws.onopen=()=>{
-      indices.forEach((index,i)=>{
-        ws.send(JSON.stringify({
-          ticks_history:index.symbol,
-          count:count,
-          end:"latest",
-          style:"ticks",
-          subscribe:0,
-          req_id:i+1
-        }));
-      });
-    };
-
-    ws.onmessage=(event)=>{
-      let data;
-      try{data=JSON.parse(event.data)}catch(e){return}
-
-      if(data.error && data.req_id){
-        received[data.req_id]={error:data.error.message||"Deriv rejected the request."};
-      }else if(data.msg_type==="history" && data.req_id){
-        received[data.req_id]={prices:(data.history&&data.history.prices)||[]};
-      }
-
-      if(Object.keys(received).length===indices.length){
-        finished=true;
-        clearTimeout(timer);
-        try{ws.close()}catch(e){}
-        resolve(received);
-      }
-    };
-
-    ws.onerror=()=>fail("WebSocket connection failed. The browser could not maintain the Deriv public connection.");
-
-    ws.onclose=(event)=>{
-      if(!finished && event.code!==1000){
-        fail("WebSocket closed before all market data arrived (code "+event.code+").");
-      }
-    };
-  });
-}
-
-function analyze(index,prices){
-  const counts=Array(10).fill(0);
-  for(const price of prices){
-    const d=lastDigit(price);
-    if(Number.isInteger(d)&&d>=0&&d<=9) counts[d]++;
-  }
-  const ticks=counts.reduce((a,b)=>a+b,0);
-  if(!ticks) throw new Error("Deriv returned no usable tick digits.");
-
-  const ranked=counts.map((count,digit)=>({
-    digit,
-    count,
-    percent:count/ticks*100
-  })).sort((a,b)=>b.percent-a.percent);
-
-  return {
-    symbol:index.symbol,
-    name:index.name,
-    ticks,
-    digit:ranked[0].digit,
-    percent:ranked[0].percent,
-    secondPercent:ranked[1].percent,
-    lead:ranked[0].percent-ranked[1].percent
-  };
-}
-
 async function scan(){
-  const button=document.getElementById("scan");
-  const status=document.getElementById("status");
-  const results=document.getElementById("results");
-  const history=Number(document.getElementById("history").value);
-  const minimum=Number(document.getElementById("minSignals").value);
-
-  button.disabled=true;
-  status.textContent="Connecting to Deriv and requesting "+history.toLocaleString()+" ticks per index...";
-  document.getElementById("bestIndex").textContent="—";
-  document.getElementById("bestDigit").textContent="—";
-  document.getElementById("bestPercent").textContent="—";
-  document.getElementById("secondPercent").textContent="—";
-  document.getElementById("message").textContent="Scanning...";
-
-  try{
-    const histories=await getHistories(INDICES,history);
-    const output=INDICES.map((index,i)=>{
-      const data=histories[i+1];
-      if(data && data.error) return {name:index.name,error:data.error};
-      try{return analyze(index,(data&&data.prices)||[])}
-      catch(e){return {name:index.name,error:e.message}}
-    });
-
-    const valid=output
-      .filter(x=>!x.error && x.ticks>=minimum)
-      .sort((a,b)=>b.percent!==a.percent ? b.percent-a.percent : b.lead-a.lead);
-
-    results.innerHTML=output.map((x,i)=>{
-      if(x.error){
-        return "<tr><td>"+(i+1)+"</td><td>"+x.name+"</td><td colspan='6' class='bad'>"+x.error+"</td></tr>";
-      }
-      return "<tr><td>"+(i+1)+"</td><td><strong>"+x.name+"</strong></td><td>"+x.ticks+
-        "</td><td><strong>"+x.digit+"</strong></td><td>"+x.percent.toFixed(2)+"%</td><td>"+
-        x.secondPercent.toFixed(2)+"%</td><td>"+x.lead.toFixed(2)+" pp</td><td>"+
-        (x.ticks>=minimum ? "<span class='good'>VALID</span>" : "INSUFFICIENT")+"</td></tr>";
-    }).join("");
-
-    if(!valid.length){
-      document.getElementById("bestIndex").textContent="NONE";
-      document.getElementById("message").textContent="No index currently meets the minimum data requirement.";
-      status.textContent="Scan complete — no qualified signal.";
-      return;
-    }
-
-    const best=valid[0];
-    document.getElementById("bestIndex").textContent=best.name;
-    document.getElementById("bestDigit").textContent=best.digit;
-    document.getElementById("bestPercent").textContent=best.percent.toFixed(2)+"%";
-    document.getElementById("secondPercent").textContent=best.secondPercent.toFixed(2)+"%";
-    document.getElementById("message").innerHTML=
-      "<strong>Best research candidate:</strong> "+best.name+
-      " — digit <strong>"+best.digit+"</strong> — highest observed frequency <strong>"+
-      best.percent.toFixed(2)+"%</strong>, lead "+best.lead.toFixed(2)+" percentage points.";
-    status.textContent="Scan complete — best candidate identified.";
-  }catch(error){
-    document.getElementById("bestIndex").textContent="NONE";
-    document.getElementById("message").textContent=error.message;
-    status.textContent="Scanner error: "+error.message;
-    results.innerHTML=INDICES.map((x,i)=>
-      "<tr><td>"+(i+1)+"</td><td>"+x.name+
-      "</td><td colspan='6' class='bad'>"+error.message+"</td></tr>"
-    ).join("");
-  }finally{
-    button.disabled=false;
-  }
+ const btn=document.getElementById('scan'); btn.disabled=true;
+ const count=+document.getElementById('history').value;
+ const minimum=+document.getElementById('minSignals').value;
+ document.getElementById('message').textContent='Connecting directly to Deriv...';
+ document.getElementById('bestIndex').textContent='—';
+ document.getElementById('bestDigit').textContent='—';
+ document.getElementById('bestPercent').textContent='—';
+ document.getElementById('secondPercent').textContent='—';
+ document.getElementById('results').innerHTML='<tr><td colspan="8">Connecting...</td></tr>';
+ try{
+   const ws=await openSocket();
+   setStatus('Connected to Deriv. Verifying symbols...');
+   await request(ws,{ping:1},9000);
+   const active=await request(ws,{active_symbols:'brief'},9001);
+   const activeSet=new Set((active.active_symbols||[]).map(x=>x.symbol||x.underlying_symbol));
+   const missing=SYMBOLS.filter(x=>!activeSet.has(x[0]));
+   if(missing.length===SYMBOLS.length) throw new Error('Connected to Deriv, but the requested 1-second symbols were not returned.');
+   const rows=[];
+   let req=100;
+   for(const [symbol,name] of SYMBOLS){
+     setStatus(`Downloading ${name} history...`);
+     try{
+       const r=await request(ws,{ticks_history:symbol,count,end:'latest',style:'ticks',subscribe:0},req++);
+       const prices=r.history?.prices||[];
+       const counts=Array(10).fill(0);
+       prices.forEach(v=>{const d=digitFromPrice(v);if(Number.isInteger(d))counts[d]++});
+       const total=counts.reduce((a,b)=>a+b,0);
+       if(!total) throw new Error('No usable tick prices returned.');
+       const ranked=counts.map((n,d)=>({d,p:n/total*100})).sort((a,b)=>b.p-a.p);
+       rows.push({symbol,name,ticks:total,digit:ranked[0].d,p:ranked[0].p,p2:ranked[1].p,lead:ranked[0].p-ranked[1].p,error:null});
+     }catch(e){rows.push({symbol,name,error:e.message})}
+   }
+   try{ws.close()}catch(e){}
+   rows.sort((a,b)=>(b.p||-1)-(a.p||-1));
+   document.getElementById('results').innerHTML=rows.map((r,i)=>r.error?
+    `<tr><td>${i+1}</td><td>${r.name}</td><td colspan="6" class="bad">${r.error}</td></tr>`:
+    `<tr><td>${i+1}</td><td><strong>${r.name}</strong></td><td>${r.ticks}</td><td><strong>${r.digit}</strong></td><td>${r.p.toFixed(2)}%</td><td>${r.p2.toFixed(2)}%</td><td>${r.lead.toFixed(2)} pp</td><td>${r.ticks>=minimum?'<span class="good">QUALIFIED</span>':'INSUFFICIENT'}</td></tr>`).join('');
+   const qualified=rows.filter(r=>!r.error&&r.ticks>=minimum);
+   if(!qualified.length){document.getElementById('bestIndex').textContent='NONE';document.getElementById('message').textContent='No index met the minimum data requirement.';setStatus('Scan complete — no qualified signal.');return}
+   const b=qualified[0];
+   document.getElementById('bestIndex').textContent=b.name;
+   document.getElementById('bestDigit').textContent=b.digit;
+   document.getElementById('bestPercent').textContent=b.p.toFixed(2)+'%';
+   document.getElementById('secondPercent').textContent=b.p2.toFixed(2)+'%';
+   document.getElementById('message').textContent=`Best research candidate: ${b.name}, digit ${b.digit}, highest frequency ${b.p.toFixed(2)}%.`;
+   setStatus('Scan complete — live Deriv data received.');
+ }catch(e){
+   document.getElementById('bestIndex').textContent='NONE';
+   document.getElementById('message').textContent=e.message;
+   setStatus('ERROR: '+e.message);
+   document.getElementById('results').innerHTML=`<tr><td colspan="8" class="bad">${e.message}</td></tr>`;
+ }finally{btn.disabled=false;}
 }
-
-document.addEventListener("DOMContentLoaded",()=>{
-  document.getElementById("scan").addEventListener("click",scan);
-});
+document.getElementById('scan').addEventListener('click',scan);
 </script>
 </body>
 </html>
