@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Deriv Digit Analyzer — Edge + Stability</title>
+<title>Deriv Digit Analyzer — Edge + Stability v2</title>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}
 .wrap{max-width:1100px;margin:auto;padding:18px}
@@ -102,45 +102,48 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px so
 </div>
 
 <div class="card">
-<h2>Automatic Synthetic-Index Scanner</h2>
-<div class="muted">Each index is tested on a chronological out-of-sample segment. The scanner does not tune settings separately for each index.</div>
+<h2>Automatic Synthetic-Index Scanner v2</h2>
+<div class="muted">Two-stage research gate: discover candidates on an older development block, then confirm the same fixed rules on a newer independent block. No parameter tuning is performed between stages.</div>
 <div class="controls" style="margin-top:12px">
-<div><label>Scanner history</label><select id="scanCount">
-<option value="1000">1000 ticks</option><option value="2500">2500 ticks</option><option value="5000" selected>5000 ticks</option>
+<div><label>Total scanner history</label><select id="scanCount">
+<option value="5000">5000 ticks</option><option value="10000" selected>10000 ticks</option><option value="15000">15000 ticks</option>
 </select></div>
-<div><label>Out-of-sample share</label><select id="oosShare">
-<option value="0.20">Last 20%</option><option value="0.30" selected>Last 30%</option><option value="0.40">Last 40%</option>
+<div><label>Confirmation share</label><select id="oosShare">
+<option value="0.30">Newest 30%</option><option value="0.40" selected>Newest 40%</option><option value="0.50">Newest 50%</option>
+</select></div>
+<div><label>Minimum confirmation signals</label><select id="minConfirm">
+<option value="30" selected>30 signals</option><option value="40">40 signals</option><option value="50">50 signals</option>
+</select></div>
+<div><label>Required confirmation rate</label><select id="confirmRate">
+<option value="0.10" selected>Above 10%</option><option value="0.11">Above 11%</option><option value="0.12">Above 12%</option>
 </select></div>
 </div>
-<button id="scan" class="scan" style="margin-top:10px">Scan All Synthetic Indices</button>
+<button id="scan" class="scan" style="margin-top:10px">Run Two-Stage Scan</button>
 <div id="scanStatus" class="status">Scanner not run.</div>
 
 <div id="scanResults" style="margin-top:12px;display:none">
 <div class="small" style="margin-bottom:8px">
-<b>Selection gate:</b> at least 30 OOS signals, OOS win rate above 10%, and at least 3 of 5 chronological periods above 10%.
-The combined score is for research ranking only.
+<b>Selection gate v2:</b> development OOS must have at least 30 signals, beat the baseline, and have 3/5 periods above 10%. The newer confirmation block must independently meet the selected signal and win-rate requirements. A candidate passes only if both stages pass.
 </div>
 <div class="tableWrap"><table>
-<thead><tr><th>Rank</th><th>Index</th><th>Signals</th><th>Wins</th><th>OOS rate</th><th>Coverage</th><th>Edge</th><th>Stability</th><th>Score</th><th>Gate</th></tr></thead>
+<thead><tr><th>Rank</th><th>Index</th><th>Dev OOS</th><th>Dev rate</th><th>Dev stability</th><th>Confirm signals</th><th>Confirm rate</th><th>Confirm coverage</th><th>Score</th><th>Gate</th></tr></thead>
 <tbody id="scanLog"></tbody></table></div>
 
-<button id="stability" class="secondary" style="margin-top:10px">Run Stability Test on Top Passing Index</button>
-<div id="stabilityStatus" class="status">Stability test not run.</div>
+<button id="stability" class="secondary" style="margin-top:10px">Run Fresh Confirmation on Top Passing Index</button>
+<div id="stabilityStatus" class="status">Fresh confirmation not run.</div>
 
 <div id="stabilityResults" style="margin-top:12px;display:none">
 <div class="results">
 <div class="metric"><div class="small">Index tested</div><div id="stIndex" class="value">—</div></div>
-<div class="metric"><div class="small">Total signals</div><div id="stSignals" class="value">—</div></div>
-<div class="metric"><div class="small">Overall win rate</div><div id="stRate" class="value">—</div></div>
-<div class="metric"><div class="small">Median period rate</div><div id="stMedian" class="value">—</div></div>
-<div class="metric"><div class="small">Periods above 10%</div><div id="stAbove" class="value">—</div></div>
-<div class="metric"><div class="small">Stability score</div><div id="stScore" class="value">—</div></div>
-<div class="metric"><div class="small">Lowest period rate</div><div id="stLow" class="value">—</div></div>
-<div class="metric"><div class="small">Highest period rate</div><div id="stHigh" class="value">—</div></div>
+<div class="metric"><div class="small">Confirmation signals</div><div id="stSignals" class="value">—</div></div>
+<div class="metric"><div class="small">Confirmation wins</div><div id="stWins" class="value">—</div></div>
+<div class="metric"><div class="small">Confirmation rate</div><div id="stRate" class="value">—</div></div>
+<div class="metric"><div class="small">Coverage</div><div id="stCoverage" class="value">—</div></div>
+<div class="metric"><div class="small">Confirmation lift</div><div id="stLift" class="value">—</div></div>
+<div class="metric"><div class="small">Dev stability</div><div id="stScore" class="value">—</div></div>
+<div class="metric"><div class="small">Final decision</div><div id="stDecision" class="value">—</div></div>
 </div>
-<h3>Chronological stability</h3>
-<div class="tableWrap"><table><thead><tr><th>Period</th><th>Signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead>
-<tbody id="stabilityLog"></tbody></table></div>
+<div id="stabilityDetail" class="muted" style="margin-top:10px"></div>
 </div>
 </div>
 </div>
@@ -214,46 +217,67 @@ function runBacktest(){
  $("btStatus").textContent=`Confidence backtest complete — ${signals} signals, ${skipped} skipped.`;
  $("btResults").style.display="block";
 }
-function settings(){return {primary:+$("window").value,minLead:+$("minLead").value,minFreq:+$("minFreq").value,needAgreement:+$("agreement").value,history:+$("scanCount").value,oos:+$("oosShare").value}}
-function evaluateOOS(data,s){
- const maxW=250,split=Math.floor(data.length*(1-s.oos)),start=Math.max(maxW,split),end=data.length;
+function settings(){return {
+ primary:+$("window").value,minLead:+$("minLead").value,minFreq:+$("minFreq").value,
+ needAgreement:+$("agreement").value,history:+$("scanCount").value,
+ confirmShare:+$("oosShare").value,minConfirm:+$("minConfirm").value,
+ confirmRate:+$("confirmRate").value
+}}
+function evaluateOOS(data,s,share=s.confirmShare){
+ const maxW=250,split=Math.floor(data.length*(1-share)),start=Math.max(maxW,split),end=data.length;
  let wins=0,signals=0;
- for(let i=start;i<end;i++){const p=confidencePoint(data,i,s.primary,s.minLead,s.minFreq,s.needAgreement);if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++}
+ for(let i=start;i<end;i++){
+  const p=confidencePoint(data,i,s.primary,s.minLead,s.minFreq,s.needAgreement);
+  if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++
+ }
  const points=Math.max(0,end-start),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;
  return {signals,wins,losses:signals-wins,rate,coverage,points,split};
 }
-function evaluateStability(data,s){
- const periods=5,maxW=250,startBase=Math.max(maxW,Math.floor(data.length*.2)),span=Math.floor((data.length-startBase)/periods),rows=[];
+function evaluateBlock(data,s){
+ const maxW=250,start=maxW,end=data.length;let wins=0,signals=0;
+ for(let i=start;i<end;i++){
+  const p=confidencePoint(data,i,s.primary,s.minLead,s.minFreq,s.needAgreement);
+  if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++
+ }
+ const points=Math.max(0,end-start),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;
+ return {signals,wins,losses:signals-wins,rate,coverage,points};
+}
+function evaluateStability(data,s,baseline=10){
+ const periods=5,maxW=250,startBase=Math.max(maxW,Math.floor(data.length*.2)),span=Math.max(1,Math.floor((data.length-startBase)/periods)),rows=[];
  for(let k=0;k<periods;k++){
-  const start=startBase+k*span,end=k===periods-1?data.length:start+span;let wins=0,signals=0;
-  for(let i=Math.max(maxW,start);i<end;i++){const p=confidencePoint(data,i,s.primary,s.minLead,s.minFreq,s.needAgreement);if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++}
+  const start=startBase+k*span,end=k===periods-1?data.length:Math.min(data.length,start+span);let wins=0,signals=0;
+  for(let i=Math.max(maxW,start);i<end;i++){
+   const p=confidencePoint(data,i,s.primary,s.minLead,s.minFreq,s.needAgreement);
+   if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++
+  }
   const points=Math.max(0,end-Math.max(maxW,start)),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;
-  rows.push({period:k+1,start,end,signals,wins,rate,coverage,points,lift:rate-10});
+  rows.push({period:k+1,start,end,signals,wins,rate,coverage,points,lift:rate-baseline});
  }
  const totalSignals=rows.reduce((a,r)=>a+r.signals,0),totalWins=rows.reduce((a,r)=>a+r.wins,0);
  const rates=rows.filter(r=>r.signals>0).map(r=>r.rate).sort((a,b)=>a-b);
  const median=rates.length?(rates.length%2?rates[(rates.length-1)/2]:(rates[rates.length/2-1]+rates[rates.length/2])/2):0;
- const above=rows.filter(r=>r.signals>0&&r.rate>10).length;
- return {rows,totalSignals,totalWins,overallRate:totalSignals?totalWins/totalSignals*100:0,median,above,
+ const above=rows.filter(r=>r.signals>=10&&r.rate>baseline).length;
+ const usable=rows.filter(r=>r.signals>=10).length;
+ return {rows,totalSignals,totalWins,overallRate:totalSignals?totalWins/totalSignals*100:0,median,above,usable,
  stabilityScore:Math.round(above/periods*100),low:rates.length?rates[0]:0,high:rates.length?rates[rates.length-1]:0};
 }
-function scoreResult(oos,st){
- // Research score, not a prediction of future profit.
- const edge=Math.max(0,Math.min(1,(oos.rate-10)/10));
+function scoreResult(dev,st,confirm,s){
+ const edge=Math.max(0,Math.min(1,(dev.rate-10)/10));
  const stability=st.stabilityScore/100;
- const sample=Math.min(1,oos.signals/30);
+ const sample=Math.min(1,dev.signals/50);
  const median=Math.max(0,Math.min(1,(st.median-10)/10));
- const score=(edge*.35+stability*.35+sample*.15+median*.15)*100;
- const pass=oos.signals>=30&&oos.rate>10&&st.above>=3;
- return {score,pass,edge:edge*100,stability:stability*100,median:median*100};
+ const confirmation=Math.max(0,Math.min(1,(confirm.rate-10)/10));
+ const score=(edge*.25+stability*.25+sample*.10+median*.10+confirmation*.30)*100;
+ const pass=dev.signals>=30&&dev.rate>10&&st.above>=3&&confirm.signals>=s.minConfirm&&confirm.rate>s.confirmRate*100;
+ return {score,pass,edge:edge*100,stability:stability*100,median:median*100,confirmation:confirmation*100};
 }
-function fetchHistory(id,history){return new Promise((resolve,reject)=>{
+function fetchHistory(id,history,end="latest"){return new Promise((resolve,reject)=>{
  let localEp=0,socket=null,done=false,timer=null;
  const tryEndpoint=()=>{
   if(done)return;
   try{socket=new WebSocket(ENDPOINTS[localEp])}catch(e){if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(e);return}
-  timer=setTimeout(()=>{try{socket.close()}catch(e){};if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(new Error("Connection timeout"))},8000);
-  socket.onopen=()=>{try{socket.send(JSON.stringify({ticks_history:id,count:history,end:"latest",style:"ticks",req_id:91}))}catch(e){clearTimeout(timer);reject(e)}};
+  timer=setTimeout(()=>{try{socket.close()}catch(e){};if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(new Error("Connection timeout"))},10000);
+  socket.onopen=()=>{try{socket.send(JSON.stringify({ticks_history:id,count:history,end,style:"ticks",req_id:91}))}catch(e){clearTimeout(timer);reject(e)}};
   socket.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}
    if(d.error){clearTimeout(timer);try{socket.close()}catch(_){};if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(new Error(d.error.message||"Deriv error"));return}
    if(d.msg_type==="history"&&d.history){done=true;clearTimeout(timer);const p=d.history.prices||[],t=d.history.times||[];
@@ -264,46 +288,51 @@ function fetchHistory(id,history){return new Promise((resolve,reject)=>{
  };
  tryEndpoint();
 })}
+function splitDevelopmentConfirmation(data,share){
+ const cut=Math.floor(data.length*(1-share));
+ return {development:data.slice(0,cut),confirmation:data.slice(cut),cut};
+}
 async function scanAll(){
- if(scannerRunning)return;scannerRunning=true;$("scan").disabled=true;$("stability").disabled=true;$("scanResults").style.display="none";
- const s=settings(),results=[];$("scanStatus").textContent=`Scanning ${SYMBOLS.length} synthetic indices…`;
+ if(scannerRunning)return;scannerRunning=true;$('scan').disabled=true;$('stability').disabled=true;$('scanResults').style.display='none';
+ const s=settings(),results=[];$('scanStatus').textContent=`Downloading ${s.history} ticks for each index…`;
  for(let i=0;i<SYMBOLS.length;i++){
-  const x=SYMBOLS[i];$("scanStatus").textContent=`Scanning ${x.name} — ${i+1}/${SYMBOLS.length}…`;
-  try{const data=await fetchHistory(x.id,s.history);const oos=evaluateOOS(data,s);const st=evaluateStability(data,s);const sc=scoreResult(oos,st);
-   results.push({...x,...oos,...st,...sc,error:""});
-  }catch(e){results.push({...x,signals:0,wins:0,losses:0,rate:0,coverage:0,points:0,above:0,stabilityScore:0,median:0,score:0,pass:false,error:e.message||"Unable to load data"})}
+  const x=SYMBOLS[i];$('scanStatus').textContent=`Testing ${x.name} — ${i+1}/${SYMBOLS.length}…`;
+  try{
+   const data=await fetchHistory(x.id,s.history),parts=splitDevelopmentConfirmation(data,s.confirmShare);
+   if(parts.development.length<300||parts.confirmation.length<300)throw new Error('Not enough data for two-stage validation');
+   const dev=evaluateOOS(parts.development,s,0.30),st=evaluateStability(parts.development,s),confirm=evaluateBlock(parts.confirmation,s);
+   const sc=scoreResult(dev,st,confirm,s);
+   results.push({...x,...dev,devRate:dev.rate,devCoverage:dev.coverage,devAbove:st.above,devStability:st.stabilityScore,confirmSignals:confirm.signals,confirmWins:confirm.wins,confirmRate:confirm.rate,confirmCoverage:confirm.coverage,...sc,error:'',rawLength:data.length});
+  }catch(e){results.push({...x,signals:0,wins:0,losses:0,rate:0,coverage:0,devRate:0,devCoverage:0,devAbove:0,devStability:0,confirmSignals:0,confirmWins:0,confirmRate:0,confirmCoverage:0,score:0,pass:false,error:e.message||'Unable to load data'})}
  }
- results.sort((a,b)=>{if(a.error&&!b.error)return 1;if(!a.error&&b.error)return -1;if(b.pass!==a.pass)return b.pass? -1:1;if(b.score!==a.score)return b.score-a.score;return b.signals-a.signals});
- $("scanLog").innerHTML=results.map((r,i)=>{
-  const gate=r.error?"ERROR":r.pass?"PASS":"HOLD";
-  return `<tr><td class="${i===0&&!r.error?"rank1":""}">${i+1}</td><td>${r.name}</td>
-  <td>${r.error?"—":r.signals}</td><td>${r.error?"—":r.wins}</td><td>${r.error?"—":r.rate.toFixed(2)+"%"}</td>
-  <td>${r.error?"—":r.coverage.toFixed(1)+"%"}</td><td>${r.error?"—":r.edge.toFixed(0)+"%"}</td>
-  <td>${r.error?"—":r.stabilityScore.toFixed(0)+"%"}</td><td>${r.error?"—":r.score.toFixed(1)}</td>
-  <td class="${r.pass?"pass":"fail"}">${gate}</td></tr>`}).join("");
- window.lastScanResults=results;
- const passing=results.filter(r=>!r.error&&r.pass).length;
- $("scanStatus").textContent=`Scan complete — ${passing} index${passing===1?"":"es"} passed the research gate.`;
- $("scanResults").style.display="block";$("scan").disabled=false;$("stability").disabled=false;scannerRunning=false;
+ results.sort((a,b)=>{if(a.error&&!b.error)return 1;if(!a.error&&b.error)return -1;if(b.pass!==a.pass)return b.pass?-1:1;if(b.score!==a.score)return b.score-a.score;return b.confirmSignals-a.confirmSignals});
+ $('scanLog').innerHTML=results.map((r,i)=>{const gate=r.error?'ERROR':r.pass?'PASS':'HOLD';return `<tr>
+ <td class="${i===0&&!r.error?'rank1':''}">${i+1}</td><td>${r.name}</td>
+ <td>${r.error?'—':r.signals}</td><td>${r.error?'—':r.devRate.toFixed(2)+'%'}</td><td>${r.error?'—':r.devStability+'%'}</td>
+ <td>${r.error?'—':r.confirmSignals}</td><td>${r.error?'—':r.confirmRate.toFixed(2)+'%'}</td><td>${r.error?'—':r.confirmCoverage.toFixed(1)+'%'}</td>
+ <td>${r.error?'—':r.score.toFixed(1)}</td><td class="${r.pass?'pass':'fail'}">${gate}</td></tr>`}).join('');
+ window.lastScanResults=results;const passing=results.filter(r=>!r.error&&r.pass).length;
+ $('scanStatus').textContent=`Two-stage scan complete — ${passing} index${passing===1?'':'es'} passed both research gates.`;
+ $('scanResults').style.display='block';$('scan').disabled=false;$('stability').disabled=false;scannerRunning=false;
 }
 async function runStability(){
- if(scannerRunning)return;
- const ranked=(window.lastScanResults||[]).filter(r=>!r.error&&r.pass);
- if(!ranked.length){$("stabilityStatus").textContent="No index passed the gate. Do not select one just because it ranked highest.";return}
- const top=ranked[0],s=settings();scannerRunning=true;$("stability").disabled=true;$("scan").disabled=true;$("stabilityResults").style.display="none";
- $("stabilityStatus").textContent=`Downloading a fresh ${s.history}-tick sample for ${top.name}…`;
- try{const data=await fetchHistory(top.id,s.history),st=evaluateStability(data,s);
-  $("stIndex").textContent=top.name.replace("Volatility ","V").replace(" (1s)","");
-  $("stSignals").textContent=st.totalSignals;$("stRate").textContent=st.overallRate.toFixed(2)+"%";
-  $("stMedian").textContent=st.median.toFixed(2)+"%";$("stAbove").textContent=`${st.above}/5`;
-  $("stScore").textContent=st.stabilityScore+"%";$("stLow").textContent=st.low.toFixed(2)+"%";$("stHigh").textContent=st.high.toFixed(2)+"%";
-  $("stabilityLog").innerHTML=st.rows.map(r=>`<tr><td>Period ${r.period}</td><td>${r.signals}</td><td>${r.wins}</td>
-  <td>${r.rate.toFixed(2)}%</td><td>${r.coverage.toFixed(1)}%</td><td>${r.lift>=0?"+":""}${r.lift.toFixed(2)} pp</td>
-  <td>${r.signals<10?"LOW SAMPLE":r.rate>10?"ABOVE BASELINE":"AT/BELOW BASELINE"}</td></tr>`).join("");
-  $("stabilityStatus").textContent=`Fresh stability test complete — ${st.above} of 5 periods were above 10%.`;
-  $("stabilityResults").style.display="block";
- }catch(e){$("stabilityStatus").textContent=`Stability test failed: ${e.message||"Unable to load data"}`}
- finally{$("stability").disabled=false;$("scan").disabled=false;scannerRunning=false}
+ if(scannerRunning)return;const ranked=(window.lastScanResults||[]).filter(r=>!r.error&&r.pass);
+ if(!ranked.length){$('stabilityStatus').textContent='No index passed both gates. Do not select one just because it ranked highest.';return}
+ const top=ranked[0],s=settings();scannerRunning=true;$('stability').disabled=true;$('scan').disabled=true;$('stabilityResults').style.display='none';
+ $('stabilityStatus').textContent=`Running a fresh confirmation check on ${top.name}…`;
+ try{
+  const fresh=await fetchHistory(top.id,s.history),parts=splitDevelopmentConfirmation(fresh,s.confirmShare);
+  const conf=evaluateBlock(parts.confirmation,s),st=evaluateStability(parts.development,s);
+  const pass=conf.signals>=s.minConfirm&&conf.rate>s.confirmRate*100;
+  $('stIndex').textContent=top.name.replace('Volatility ','V').replace(' (1s)','');
+  $('stSignals').textContent=conf.signals;$('stWins').textContent=conf.wins;$('stRate').textContent=conf.rate.toFixed(2)+'%';
+  $('stCoverage').textContent=conf.coverage.toFixed(1)+'%';$('stLift').textContent=(conf.rate-10>=0?'+':'')+(conf.rate-10).toFixed(2)+' pp';
+  $('stScore').textContent=st.stabilityScore+'%';$('stDecision').textContent=pass?'PASS':'HOLD';
+  $('stabilityDetail').textContent=`Fresh confirmation used the newest ${Math.round(s.confirmShare*100)}% block of a new ${s.history}-tick sample. Required: ${s.minConfirm}+ signals and >${(s.confirmRate*100).toFixed(0)}% win rate. Development stability: ${st.above}/5 periods above 10%.`;
+  $('stabilityStatus').textContent=pass?'Fresh confirmation passed the confirmation gate.':'Fresh confirmation failed the confirmation gate — no trade selection recommended.';
+  $('stabilityResults').style.display='block';
+ }catch(e){$('stabilityStatus').textContent=`Fresh confirmation failed: ${e.message||'Unable to load data'}`}
+ finally{$('stability').disabled=false;$('scan').disabled=false;scannerRunning=false}
 }
 function send(o){if(!ws||ws.readyState!==1)throw Error("WebSocket is not open");ws.send(JSON.stringify(o))}
 function start(){
