@@ -1,7 +1,7 @@
 <!-- Github Pages refresh -->
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Digit Probability Analyzer + Matches Backtest</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Digit Probability Analyzer + Auto Index Scanner</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1000px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}.muted{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px}button{cursor:pointer;background:#111827;color:#fff}.secondary{background:#344054}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}.win{font-weight:700}.loss{font-weight:700}.small{font-size:12px;color:#667085}@media(max-width:700px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}}
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:24px;margin:0 0 6px}.muted{color:#667085;font-size:13px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:12px;border:1px solid #ccd3df;border-radius:9px;background:#fff;font-size:15px}button{cursor:pointer;background:#111827;color:#fff}.secondary{background:#344054}.scan{background:#175cd3}.status{padding:10px;border-radius:9px;background:#eef2ff;margin-top:10px}.best{font-size:22px;font-weight:700;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.digit{border:1px solid #d9dee8;border-radius:10px;padding:10px;text-align:center}.digit.bestDigit{border:2px solid #111827}.num{font-size:22px;font-weight:700}.pct{font-size:16px;margin:4px 0}.bar{height:8px;background:#e7ebf1;border-radius:99px;overflow:hidden}.fill{height:100%;background:#111827}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}.warn{font-size:13px;line-height:1.45;background:#fff7e6;padding:12px;border-radius:9px}.results{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric{border:1px solid #d9dee8;border-radius:10px;padding:12px}.metric .value{font-size:22px;font-weight:700;margin-top:5px}.win{font-weight:700}.loss{font-weight:700}.small{font-size:12px;color:#667085}.rank1{font-weight:700}.positive{font-weight:700}.negative{font-weight:700}.tableWrap{overflow-x:auto}@media(max-width:700px){.controls{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.results{grid-template-columns:repeat(2,1fr)}th,td{font-size:12px}}
 </style></head><body><div class="wrap">
 <div class="card"><h1>Deriv Digit Probability Analyzer</h1><div class="muted">Read-only market-data analyzer. No login and no trades.</div>
 <div class="controls" style="margin-top:12px">
@@ -31,12 +31,24 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 <div class="metric"><div class="small">Random baseline</div><div class="value">10%</div></div>
 <div class="metric"><div class="small">Win-rate lift</div><div id="btLift" class="value">—</div></div>
 </div><div id="btDetail" class="muted" style="margin-top:10px"></div>
-<h3>Confidence prediction log</h3><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Primary freq.</th><th>Lead</th><th>Agreement</th></tr></thead><tbody id="btLog"></tbody></table></div></div>
-<div class="card"><h3>Recent sample</h3><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div>
-<div class="card warn"><strong>Important:</strong> A Matches win requires the predicted digit to equal the next tick's last digit. The confidence filter can skip weak setups, but it cannot create a guaranteed edge. A small number of signals can produce unstable win rates. This is a research tool and does not place trades.</div></div>
+<h3>Confidence prediction log</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Predicted</th><th>Actual</th><th>Result</th><th>Primary freq.</th><th>Lead</th><th>Agreement</th></tr></thead><tbody id="btLog"></tbody></table></div></div></div>
+<div class="card"><h2 style="margin:0 0 6px">Automatic Synthetic-Index Scanner</h2>
+<div class="muted">Downloads the same historical sample for all five 1-second Volatility indices, then evaluates the fixed confidence rules on the final 30% of each sample. The test segment is not used to choose the settings. Results are ranked by out-of-sample win rate, with signal count and coverage shown beside it.</div>
+<div class="controls" style="margin-top:12px"><div><label>Scanner history</label><select id="scanCount"><option value="1000">1000 ticks</option><option value="2500">2500 ticks</option><option value="5000" selected>5000 ticks</option></select></div><div><label>Out-of-sample share</label><select id="oosShare"><option value="0.20">Last 20%</option><option value="0.30" selected>Last 30%</option><option value="0.40">Last 40%</option></select></div></div>
+<button id="scan" class="scan" style="margin-top:10px">Scan All Synthetic Indices</button><div id="scanStatus" class="status">Scanner not run.</div>
+<div id="scanResults" style="margin-top:12px;display:none"><div class="tableWrap"><table><thead><tr><th>Rank</th><th>Index</th><th>OOS signals</th><th>Wins</th><th>Win rate</th><th>Coverage</th><th>Lift vs 10%</th><th>Status</th></tr></thead><tbody id="scanLog"></tbody></table></div><div class="small" style="margin-top:10px">Ranking is research-only. A higher observed win rate with very few signals is not automatically better. Prefer results with meaningful signal counts and repeat them on fresh data before considering any trading use.</div></div></div>
+<div class="card"><h3>Recent sample</h3><div class="tableWrap"><table><thead><tr><th>#</th><th>Digit</th><th>Quote</th><th>Time</th></tr></thead><tbody id="recent"></tbody></table></div></div>
+<div class="card warn"><strong>Important:</strong> A Matches win requires the predicted digit to equal the next tick's last digit. The confidence filter can skip weak setups, but it cannot create a guaranteed edge. This tool does not place trades. Backtest results can change substantially with new data, and payout/fees are not included in the win-rate calculation.</div></div>
 <script>
 const ENDPOINTS=["wss://api.derivws.com/trading/v1/options/ws/public","wss://ws.binaryws.com/websockets/v3"];
-let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=1000,connecting=false;
+const SYMBOLS=[
+ {id:"1HZ10V",name:"Volatility 10 (1s)"},
+ {id:"1HZ25V",name:"Volatility 25 (1s)"},
+ {id:"1HZ50V",name:"Volatility 50 (1s)"},
+ {id:"1HZ75V",name:"Volatility 75 (1s)"},
+ {id:"1HZ100V",name:"Volatility 100 (1s)"}
+];
+let ws=null,ep=0,ticks=[],symbol="1HZ50V",count=1000,connecting=false,scannerRunning=false;
 const $=id=>document.getElementById(id);
 function status(t){$("status").textContent=t}
 function digit(q,pipSize=2){let s=Number(q).toFixed(pipSize);return s?s[s.length-1]*1:null}
@@ -48,73 +60,93 @@ function render(){
  $("digits").innerHTML=c.map((v,d)=>{let p=n?v/n*100:0;return `<div class="digit ${n&&d===b?'bestDigit':''}"><div class="num">${d}</div><div class="pct">${p.toFixed(2)}%</div><div class="muted">${v} hits</div><div class="bar"><div class="fill" style="width:${Math.min(p*2,100)}%"></div></div></div>`}).join("");
  $("recent").innerHTML=ticks.slice(-20).reverse().map((x,i)=>`<tr><td>${i+1}</td><td><strong>${x.digit}</strong></td><td>${x.quote}</td><td>${new Date(x.epoch*1000).toLocaleTimeString()}</td></tr>`).join("");
 }
-function mostFrequent(arr){const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});let b=0;for(let d=1;d<10;d++){if(c[d]>c[b])b=d}return {digit:b,count:c[b],total:arr.length,counts:c}}
 function windowStats(arr){
  const c=Array(10).fill(0);arr.forEach(x=>{if(x.digit!=null)c[x.digit]++});
  let order=[0,1,2,3,4,5,6,7,8,9].sort((a,b)=>c[b]-c[a]);
- const top=order[0], second=order[1], total=arr.length;
- return {digit:top,count:c[top],total,frequency:total?c[top]/total:0,second,secondFrequency:total?c[second]/total:0,lead:total?(c[top]-c[second])/total:0,counts:c,order};
+ const top=order[0],second=order[1],total=arr.length;
+ return {digit:top,count:c[top],total,frequency:total?c[top]/total:0,second,secondFrequency:total?c[second]/total:0,lead:total?(c[top]-c[second])/total:0};
+}
+function confidencePoint(data,i,primary,minLead,minFreq,needAgreement){
+ const windows=[25,50,100,250];
+ const stats={};windows.forEach(w=>stats[w]=windowStats(data.slice(i-w,i)));
+ const p=stats[primary];
+ const countsByDigit=Array(10).fill(0);windows.forEach(w=>countsByDigit[stats[w].digit]++);
+ const agreement=countsByDigit[p.digit];
+ return {qualifies:p.frequency>=minFreq&&p.lead>=minLead&&agreement>=needAgreement,pred:p.digit,freq:p.frequency,lead:p.lead,agreement};
 }
 function runBacktest(){
- const primary=+$('window').value;
- const minLead=+$('minLead').value;
- const minFreq=+$('minFreq').value;
- const needAgreement=+$('agreement').value;
- const windows=[25,50,100,250];
- const maxW=Math.max(primary, ...windows);
+ const primary=+$('window').value,minLead=+$('minLead').value,minFreq=+$('minFreq').value,needAgreement=+$('agreement').value;
+ const maxW=250;
  if(ticks.length<=maxW){$('btStatus').textContent=`Need more than ${maxW} ticks. Current sample: ${ticks.length}.`;$('btResults').style.display='none';return}
  let wins=0,losses=0,skipped=0,rows=[];
  for(let i=maxW;i<ticks.length;i++){
-   const stats={};
-   windows.forEach(w=>stats[w]=windowStats(ticks.slice(i-w,i)));
-   const p=stats[primary];
-   const countsByDigit=Array(10).fill(0);
-   windows.forEach(w=>countsByDigit[stats[w].digit]++);
-   const agreement=countsByDigit[p.digit];
-   const qualifies=p.frequency>=minFreq && p.lead>=minLead && agreement>=needAgreement;
-   if(!qualifies){skipped++;continue}
-   const actual=ticks[i].digit, win=p.digit===actual;
-   if(win)wins++;else losses++;
-   if(rows.length<150)rows.push({n:i-maxW+1,pred:p.digit,actual,result:win?'WIN':'LOSS',freq:`${p.count}/${primary} (${(p.frequency*100).toFixed(1)}%)`,lead:(p.lead*100).toFixed(1)+'%',agreement:`${agreement}/4`});
+   const p=confidencePoint(ticks,i,primary,minLead,minFreq,needAgreement);
+   if(!p.qualifies){skipped++;continue}
+   const actual=ticks[i].digit,win=p.pred===actual;if(win)wins++;else losses++;
+   if(rows.length<150)rows.push({n:i-maxW+1,pred:p.pred,actual,result:win?'WIN':'LOSS',freq:`${Math.round(p.freq*primary)}/${primary} (${(p.freq*100).toFixed(1)}%)`,lead:(p.lead*100).toFixed(1)+'%',agreement:`${p.agreement}/4`});
  }
- const signals=wins+losses, totalEvaluated=ticks.length-maxW, rate=signals?wins/signals*100:0, coverage=totalEvaluated?signals/totalEvaluated*100:0, lift=rate-10;
- $('btPredictions').textContent=signals;$('btWins').textContent=wins;$('btLosses').textContent=losses;$('btRate').textContent=rate.toFixed(2)+'%';
- $('btSkipped').textContent=skipped;$('btCoverage').textContent=coverage.toFixed(2)+'%';$('btLift').textContent=(lift>=0?'+':'')+lift.toFixed(2)+' pp';
+ const signals=wins+losses,totalEvaluated=ticks.length-maxW,rate=signals?wins/signals*100:0,coverage=totalEvaluated?signals/totalEvaluated*100:0,lift=rate-10;
+ $('btPredictions').textContent=signals;$('btWins').textContent=wins;$('btLosses').textContent=losses;$('btRate').textContent=rate.toFixed(2)+'%';$('btSkipped').textContent=skipped;$('btCoverage').textContent=coverage.toFixed(2)+'%';$('btLift').textContent=(lift>=0?'+':'')+lift.toFixed(2)+' pp';
  $('btDetail').textContent=`${symbol}: ${signals} qualified Matches signals from ${totalEvaluated} possible prediction points. Primary window ${primary}, minimum frequency ${(minFreq*100).toFixed(0)}%, minimum lead ${(minLead*100).toFixed(0)} pp, agreement ${needAgreement}/4. Random 10-digit baseline is about 10% before payout/fees.`;
  $('btLog').innerHTML=rows.map(r=>`<tr><td>${r.n}</td><td><strong>${r.pred}</strong></td><td>${r.actual}</td><td class="${r.result==='WIN'?'win':'loss'}">${r.result}</td><td>${r.freq}</td><td>${r.lead}</td><td>${r.agreement}</td></tr>`).join('');
  $('btStatus').textContent=`Confidence backtest complete — ${signals} signals, ${skipped} skipped.`;$('btResults').style.display='block';
 }
-function send(o){if(!ws||ws.readyState!==1)throw Error("WebSocket is not open");ws.send(JSON.stringify(o))}
+function getScanSettings(){return {primary:+$('window').value,minLead:+$('minLead').value,minFreq:+$('minFreq').value,needAgreement:+$('agreement').value,history:+$('scanCount').value,oos:+$('oosShare').value};}
+function evaluateOOS(data,settings){
+ const maxW=250,split=Math.floor(data.length*(1-settings.oos));
+ const start=Math.max(maxW,split),end=data.length;
+ let wins=0,signals=0;
+ for(let i=start;i<end;i++){
+   const p=confidencePoint(data,i,settings.primary,settings.minLead,settings.minFreq,settings.needAgreement);
+   if(!p.qualifies)continue;signals++;if(p.pred===data[i].digit)wins++;
+ }
+ const points=Math.max(0,end-start),rate=signals?wins/signals*100:0,coverage=points?signals/points*100:0;
+ return {signals,wins,losses:signals-wins,rate,coverage,points,split};
+}
+function fetchHistory(id,history){return new Promise((resolve,reject)=>{
+ let localEp=0,socket=null,done=false,timer=null;
+ const tryEndpoint=()=>{
+  if(done)return;
+  try{socket=new WebSocket(ENDPOINTS[localEp])}catch(e){if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(e);return}
+  timer=setTimeout(()=>{try{socket.close()}catch(e){};if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(new Error('Connection timeout'))},8000);
+  socket.onopen=()=>{try{socket.send(JSON.stringify({ticks_history:id,count:history,end:'latest',style:'ticks',req_id:91}))}catch(e){clearTimeout(timer);reject(e)}};
+  socket.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}
+   if(d.error){clearTimeout(timer);try{socket.close()}catch(_){};if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(new Error(d.error.message||'Deriv error'));return}
+   if(d.msg_type==='history'&&d.history){done=true;clearTimeout(timer);const p=d.history.prices||[],t=d.history.times||[],out=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q,d.history.pip_size)})).filter(x=>x.digit!=null);try{socket.close()}catch(_){};resolve(out)}
+  };
+  socket.onerror=()=>{if(done)return;clearTimeout(timer);try{socket.close()}catch(_){};if(localEp<ENDPOINTS.length-1){localEp++;tryEndpoint()}else reject(new Error('Connection error'))};
+ };
+ tryEndpoint();
+});}
+async function scanAll(){
+ if(scannerRunning)return;scannerRunning=true;$('scan').disabled=true;$('scanResults').style.display='none';
+ const settings=getScanSettings(),results=[]; $('scanStatus').textContent=`Scanning ${SYMBOLS.length} synthetic indices…`;
+ for(let i=0;i<SYMBOLS.length;i++){
+  const s=SYMBOLS[i];$('scanStatus').textContent=`Scanning ${s.name} — ${i+1}/${SYMBOLS.length}…`;
+  try{const data=await fetchHistory(s.id,settings.history);const r=evaluateOOS(data,settings);results.push({...s,...r,error:''});}
+  catch(e){results.push({...s,signals:0,wins:0,losses:0,rate:0,coverage:0,points:0,error:e.message||'Unable to load data'});}
+ }
+ results.sort((a,b)=>{if(a.error&&!b.error)return 1;if(!a.error&&b.error)return -1;if(b.rate!==a.rate)return b.rate-a.rate;return b.signals-a.signals});
+ $('scanLog').innerHTML=results.map((r,i)=>{const lift=r.rate-10;const status=r.error?'ERROR':(r.signals<30?'LOW SAMPLE':(r.rate>10?'ABOVE BASELINE':'AT/BELOW BASELINE'));return `<tr><td class="${i===0&&!r.error?'rank1':''}">${i+1}</td><td>${r.name}</td><td>${r.error?'—':r.signals}</td><td>${r.error?'—':r.wins}</td><td>${r.error?'—':r.rate.toFixed(2)+'%'}</td><td>${r.error?'—':r.coverage.toFixed(1)+'%'}</td><td class="${lift>=0?'positive':'negative'}">${r.error?'—':(lift>=0?'+':'')+lift.toFixed(2)+' pp'}</td><td>${status}</td></tr>`}).join('');
+ $('scanStatus').textContent=`Scan complete — ranked ${results.filter(r=>!r.error).length} indices by out-of-sample win rate.`;$('scanResults').style.display='block';$('scan').disabled=false;scannerRunning=false;
+}
+function send(o){if(!ws||ws.readyState!==1)throw Error('WebSocket is not open');ws.send(JSON.stringify(o))}
 function start(){
  symbol=$("symbol").value;count=+$("count").value;ticks=[];render();$("btResults").style.display="none";$("btStatus").textContent="Backtest not run.";
- if(ws)try{ws.close()}catch(e){}
- ep=0;openSocket();
+ if(ws)try{ws.close()}catch(e){} ep=0;openSocket();
 }
 function openSocket(){
- connecting=true;status("Connecting to Deriv market data…");
- let timer;
+ connecting=true;status("Connecting to Deriv market data…");let timer;
  try{ws=new WebSocket(ENDPOINTS[ep])}catch(e){nextEndpoint();return}
  timer=setTimeout(()=>{if(connecting){try{ws.close()}catch(e){};nextEndpoint()}},7000);
- ws.onopen=()=>{clearTimeout(timer);connecting=false;status("Connected. Requesting tick history…");try{send({ticks_history:symbol,count:count,end:"latest",style:"ticks",req_id:1})}catch(e){fail(e.message)}};
- ws.onmessage=e=>{
-  let d;try{d=JSON.parse(e.data)}catch(_){return}
-  if(d.error){fail("Deriv error: "+(d.error.message||"Unknown error"));return}
-  if(d.msg_type==="history"&&d.history){
-   let p=d.history.prices||[],t=d.history.times||[];
-   ticks=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q,d.history.pip_size)})).filter(x=>x.digit!=null);
-   render();
-   try{send({ticks:symbol,subscribe:1,req_id:2});status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}catch(e){fail(e.message)}
-   return;
-  }
-  if(d.msg_type==="tick"&&d.tick){
-   let q=d.tick.quote,x={quote:q,epoch:d.tick.epoch,digit:digit(q,d.tick.pip_size)};
-   if(x.digit!=null){ticks.push(x);if(ticks.length>count)ticks.shift();render();status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}
-  }
+ ws.onopen=()=>{clearTimeout(timer);connecting=false;status('Connected. Requesting tick history…');try{send({ticks_history:symbol,count:count,end:'latest',style:'ticks',req_id:1})}catch(e){fail(e.message)}};
+ ws.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch(_){return}if(d.error){fail('Deriv error: '+(d.error.message||'Unknown error'));return}
+  if(d.msg_type==='history'&&d.history){let p=d.history.prices||[],t=d.history.times||[];ticks=p.map((q,i)=>({quote:q,epoch:t[i],digit:digit(q,d.history.pip_size)})).filter(x=>x.digit!=null);render();try{send({ticks:symbol,subscribe:1,req_id:2});status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}catch(e){fail(e.message)}return}
+  if(d.msg_type==='tick'&&d.tick){let q=d.tick.quote,x={quote:q,epoch:d.tick.epoch,digit:digit(q,d.tick.pip_size)};if(x.digit!=null){ticks.push(x);if(ticks.length>count)ticks.shift();render();status(`LIVE — ${symbol} — ${ticks.length}/${count} ticks`)}}
  };
- ws.onerror=()=>{clearTimeout(timer);if(connecting)nextEndpoint();else fail("Connection error.")};
- ws.onclose=()=>{if(connecting)return;if(!$("status").textContent.startsWith("LIVE"))nextEndpoint()};
+ ws.onerror=()=>{clearTimeout(timer);if(connecting)nextEndpoint();else fail('Connection error.')};ws.onclose=()=>{if(connecting)return;if(!$("status").textContent.startsWith('LIVE'))nextEndpoint()};
 }
-function nextEndpoint(){if(ep<ENDPOINTS.length-1){ep++;status("Trying Deriv public connection 2…");setTimeout(openSocket,300)}else fail("Could not connect to Deriv. Open this site directly in Safari and try again.")}
+function nextEndpoint(){if(ep<ENDPOINTS.length-1){ep++;status('Trying Deriv public connection 2…');setTimeout(openSocket,300)}else fail('Could not connect to Deriv. Open this site directly in Safari and try again.')}
 function fail(m){connecting=false;status(m)}
-$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;render();
+$("connect").onclick=start;$("symbol").onchange=start;$("count").onchange=start;$("backtest").onclick=runBacktest;$("scan").onclick=scanAll;render();
 </script></body></html>
