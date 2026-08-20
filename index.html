@@ -1,297 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Deriv Digit Analyzer — Best Match Scanner</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}
-.wrap{max-width:1100px;margin:auto;padding:18px}
-.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #0001}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-label{display:block;font-weight:bold;margin-bottom:6px}
-select,button{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;font-size:15px}
-select{border:1px solid #ccd3df}
-button{border:0;background:#1769e0;color:white;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.6;cursor:wait}
-.status{padding:12px;border-radius:8px;background:#eef3f9;margin-top:12px}
-.recommendation{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.box{padding:18px;border-radius:12px;background:#f5f8fd;border:2px solid #dce5f2}
-.box strong{display:block;font-size:25px;margin-top:8px}
-.best{border-color:#1769e0}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #e3e7ed;text-align:left}
-.good{color:#087f3e;font-weight:bold}.bad{color:#b42318;font-weight:bold}.muted{color:#687386}
-@media(max-width:800px){.controls,.recommendation{grid-template-columns:1fr}}
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)}h1{margin-top:0}.muted,.note{color:#657080}.controls,.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.grid{grid-template-columns:repeat(4,1fr)}label{display:block;font-weight:bold;margin-bottom:6px}select,button{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;font-size:15px}select{border:1px solid #ccd3df;background:#fff}button{border:0;background:#1769e0;color:#fff;font-weight:bold;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.status{padding:12px;border-radius:8px;background:#eef3f9;margin-top:12px}.box{border:1px solid #dbe2ec;border-radius:12px;padding:16px;min-height:70px}.k{font-size:13px;color:#687487}.v{font-size:22px;font-weight:bold;margin-top:8px}.good{background:#effaf2;border-color:#b9e4c3}.warn{background:#fff8e8;border-color:#f0d48b}.bad{background:#fff0f0;border-color:#efb5b5}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:9px 7px;border-bottom:1px solid #e5e9ef;text-align:left;white-space:nowrap}th{font-size:13px;color:#687487}.note{font-size:13px;line-height:1.5}@media(max-width:800px){.controls,.grid{grid-template-columns:1fr 1fr}}@media(max-width:520px){.controls,.grid{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
-<div class="wrap">
-<div class="card">
-<h1>Deriv Digit Analyzer — Best Match Scanner</h1>
-<div class="muted">Research-only scanner for Deriv 1-second Volatility Indices. No trades are placed.</div>
+<body><div class="wrap">
+<div class="card"><h1>Deriv Digit Analyzer — Best Match Scanner</h1><div class="muted">Research-only scanner. Public Deriv market data is used. No trades are placed.</div>
 <div class="controls" style="margin-top:15px">
-<div><label>History per index</label>
-<select id="history">
-<option value="1000">1,000 ticks</option><option value="2500">2,500 ticks</option>
-<option value="5000" selected>5,000 ticks</option><option value="10000">10,000 ticks</option>
-</select></div>
-<div><label>Minimum signals</label>
-<select id="minSignals">
-<option value="20">20 signals</option><option value="30" selected>30 signals</option>
-<option value="50">50 signals</option><option value="75">75 signals</option>
-</select></div>
+<div><label>History per index</label><select id="history"><option value="1000">1,000 ticks</option><option value="2000">2,000 ticks</option><option value="5000" selected>5,000 ticks</option><option value="10000">10,000 ticks</option></select></div>
+<div><label>Minimum OOS signals</label><select id="minOos"><option value="20">20 signals</option><option value="30" selected>30 signals</option><option value="50">50 signals</option><option value="75">75 signals</option></select></div>
+<div><label>Minimum training lead</label><select id="minLead"><option value="0.30">0.30 pp</option><option value="0.50" selected>0.50 pp</option><option value="0.75">0.75 pp</option><option value="1.00">1.00 pp</option></select></div></div>
+<button id="scan" style="margin-top:14px">Find Best Index + Digit</button><div id="status" class="status">Ready — click the button to scan.</div></div>
+<div class="card"><h2>Best Match Recommendation</h2><div class="grid">
+<div id="bestBox" class="box"><div class="k">BEST SYNTHETIC INDEX</div><div id="best" class="v">—</div></div>
+<div class="box"><div class="k">DIGIT TO USE</div><div id="digit" class="v">—</div></div>
+<div class="box"><div class="k">TRAINING %</div><div id="train" class="v">—</div></div>
+<div class="box"><div class="k">OOS MATCH %</div><div id="oos" class="v">—</div></div></div><div id="summary" class="status">Run the scanner to calculate the best candidate.</div></div>
+<div class="card"><h2>Index Comparison</h2><div style="overflow:auto"><table><thead><tr><th>Rank</th><th>Index</th><th>Ticks</th><th>Digit</th><th>Training %</th><th>OOS %</th><th>Lead</th><th>OOS signals</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<div class="card note"><b>Important:</b> Historical digit frequency is not a guarantee of the next tick. This version uses a training/OOS split and a minimum lead filter, so it can return <b>NONE</b> when evidence is weak.</div>
 </div>
-<button id="scan" type="button" style="margin-top:15px">Find Best Index + Digit</button>
-<div id="status" class="status">Ready — click the button to scan live public market data.</div>
-</div>
-
-<div class="card">
-<h2>Best Match Recommendation</h2>
-<div class="recommendation">
-<div class="box best"><div>BEST SYNTHETIC INDEX</div><strong id="bestIndex">—</strong></div>
-<div class="box"><div>DIGIT TO USE</div><strong id="bestDigit">—</strong></div>
-<div class="box"><div>HIGHEST CURRENT %</div><strong id="bestPercent">—</strong></div>
-<div class="box"><div>SECOND DIGIT %</div><strong id="secondPercent">—</strong></div>
-</div>
-<div id="message" class="status">Run the scanner to calculate the best candidate.</div>
-</div>
-
-<div class="card">
-<h2>Index Comparison</h2>
-<table>
-<thead><tr><th>Rank</th><th>Index</th><th>Ticks</th><th>Digit</th><th>Highest %</th><th>2nd %</th><th>Lead</th><th>Status</th></tr></thead>
-<tbody id="results"><tr><td colspan="8">Scanner not run.</td></tr></tbody>
-</table>
-</div>
-
-<div class="card"><h2>Important</h2>
-<div class="muted">This scanner measures historical digit frequency. A higher historical percentage does not guarantee that the next tick will match that digit.</div>
-</div>
-</div>
-
 <script>
-"use strict";
-
-const INDICES=[
-  {symbol:"1HZ10V",name:"Volatility 10 (1s)"},
-  {symbol:"1HZ25V",name:"Volatility 25 (1s)"},
-  {symbol:"1HZ50V",name:"Volatility 50 (1s)"},
-  {symbol:"1HZ75V",name:"Volatility 75 (1s)"},
-  {symbol:"1HZ100V",name:"Volatility 100 (1s)"}
-];
-
-const WS_URLS=[
-  "wss://api.derivws.com/trading/v1/options/ws/public",
-  "wss://ws.binaryws.com/websockets/v3"
-];
-
-function lastDigit(quote){
-  const s=String(quote);
-  const dot=s.indexOf(".");
-  if(dot>=0){
-    const decimals=s.slice(dot+1).replace(/[^0-9]/g,"");
-    if(decimals.length) return Number(decimals.slice(-1));
-  }
-  const digits=s.replace(/[^0-9]/g,"");
-  return digits.length ? Number(digits.slice(-1)) : NaN;
-}
-
-function getHistories(indices,count){
-  return new Promise((resolve,reject)=>{
-    let attempt=0;
-    let ws=null;
-    let timer=null;
-    let finished=false;
-
-    const failAll=(message)=>{
-      if(finished)return;
-      finished=true;
-      if(timer)clearTimeout(timer);
-      try{if(ws)ws.close()}catch(e){}
-      reject(new Error(message));
-    };
-
-    const connect=()=>{
-      if(finished)return;
-      const url=WS_URLS[attempt];
-      let received={};
-      let opened=false;
-
-      try{ws=new WebSocket(url);}catch(e){
-        attempt++;
-        if(attempt<WS_URLS.length) return connect();
-        return failAll("Deriv WebSocket could not be opened. Please check that your network/browser allows secure WebSocket connections.");
-      }
-
-      timer=setTimeout(()=>{
-        try{ws.close()}catch(e){}
-        if(!opened && attempt<WS_URLS.length-1){
-          attempt++;
-          connect();
-        }else{
-          failAll("Deriv WebSocket timed out. The public market-data server did not respond.");
-        }
-      },15000);
-
-      ws.onopen=()=>{
-        opened=true;
-        clearTimeout(timer);
-        timer=setTimeout(()=>{
-          try{ws.close()}catch(e){}
-          failAll("Deriv connected but did not return the requested tick history.");
-        },30000);
-
-        indices.forEach((index,i)=>{
-          ws.send(JSON.stringify({
-            ticks_history:index.symbol,
-            count:count,
-            end:"latest",
-            style:"ticks",
-            req_id:i+1
-          }));
-        });
-      };
-
-      ws.onmessage=(event)=>{
-        let data;
-        try{data=JSON.parse(event.data)}catch(e){return;}
-
-        if(data.error && data.req_id){
-          received[data.req_id]={error:data.error.message||"Deriv rejected the request."};
-        }else if(data.msg_type==="history" && data.req_id){
-          received[data.req_id]={prices:(data.history&&data.history.prices)||[]};
-        }
-
-        if(Object.keys(received).length===indices.length){
-          finished=true;
-          clearTimeout(timer);
-          try{ws.close()}catch(e){}
-          resolve(received);
-        }
-      };
-
-      ws.onerror=()=>{
-        if(finished)return;
-        try{ws.close()}catch(e){}
-        if(attempt<WS_URLS.length-1){
-          attempt++;
-          connect();
-        }else{
-          failAll("Deriv WebSocket connection failed on both public endpoints. This is a network/WebSocket access problem, not a scanner calculation problem.");
-        }
-      };
-
-      ws.onclose=(event)=>{
-        if(finished)return;
-        if(!opened && attempt<WS_URLS.length-1){
-          attempt++;
-          connect();
-        }
-      };
-    };
-
-    connect();
-  });
-}
-
-function analyze(index,prices){
-  const counts=Array(10).fill(0);
-  for(const price of prices){
-    const d=lastDigit(price);
-    if(Number.isInteger(d)&&d>=0&&d<=9) counts[d]++;
-  }
-  const ticks=counts.reduce((a,b)=>a+b,0);
-  if(!ticks) throw new Error("Deriv returned no usable tick digits.");
-
-  const ranked=counts.map((count,digit)=>({
-    digit,
-    count,
-    percent:count/ticks*100
-  })).sort((a,b)=>b.percent-a.percent);
-
-  return {
-    symbol:index.symbol,
-    name:index.name,
-    ticks,
-    digit:ranked[0].digit,
-    percent:ranked[0].percent,
-    secondPercent:ranked[1].percent,
-    lead:ranked[0].percent-ranked[1].percent
-  };
-}
-
-async function scan(){
-  const button=document.getElementById("scan");
-  const status=document.getElementById("status");
-  const results=document.getElementById("results");
-  const history=Number(document.getElementById("history").value);
-  const minimum=Number(document.getElementById("minSignals").value);
-
-  button.disabled=true;
-  status.textContent="Connecting to Deriv public market data...";
-  document.getElementById("bestIndex").textContent="—";
-  document.getElementById("bestDigit").textContent="—";
-  document.getElementById("bestPercent").textContent="—";
-  document.getElementById("secondPercent").textContent="—";
-  document.getElementById("message").textContent="Scanning...";
-
-  try{
-    const histories=await getHistories(INDICES,history);
-    const output=INDICES.map((index,i)=>{
-      const data=histories[i+1];
-      if(data && data.error) return {name:index.name,error:data.error};
-      try{return analyze(index,(data&&data.prices)||[])}
-      catch(e){return {name:index.name,error:e.message}}
-    });
-
-    const valid=output
-      .filter(x=>!x.error && x.ticks>=minimum)
-      .sort((a,b)=>b.percent!==a.percent ? b.percent-a.percent : b.lead-a.lead);
-
-    results.innerHTML=output.map((x,i)=>{
-      if(x.error){
-        return "<tr><td>"+(i+1)+"</td><td>"+x.name+"</td><td colspan='6' class='bad'>"+x.error+"</td></tr>";
-      }
-      return "<tr><td>"+(i+1)+"</td><td><strong>"+x.name+"</strong></td><td>"+x.ticks+
-        "</td><td><strong>"+x.digit+"</strong></td><td>"+x.percent.toFixed(2)+"%</td><td>"+
-        x.secondPercent.toFixed(2)+"%</td><td>"+x.lead.toFixed(2)+" pp</td><td>"+
-        (x.ticks>=minimum ? "<span class='good'>VALID</span>" : "INSUFFICIENT")+"</td></tr>";
-    }).join("");
-
-    if(!valid.length){
-      document.getElementById("bestIndex").textContent="NONE";
-      document.getElementById("message").textContent="No index currently meets the minimum data requirement.";
-      status.textContent="Scan complete — no qualified signal.";
-      return;
-    }
-
-    const best=valid[0];
-    document.getElementById("bestIndex").textContent=best.name;
-    document.getElementById("bestDigit").textContent=best.digit;
-    document.getElementById("bestPercent").textContent=best.percent.toFixed(2)+"%";
-    document.getElementById("secondPercent").textContent=best.secondPercent.toFixed(2)+"%";
-    document.getElementById("message").innerHTML=
-      "<strong>Best research candidate:</strong> "+best.name+
-      " — digit <strong>"+best.digit+"</strong> — highest observed frequency <strong>"+
-      best.percent.toFixed(2)+"%</strong>, lead "+best.lead.toFixed(2)+" percentage points.";
-    status.textContent="Scan complete — best candidate identified.";
-  }catch(error){
-    document.getElementById("bestIndex").textContent="NONE";
-    document.getElementById("message").textContent=error.message;
-    status.textContent="Scanner error: "+error.message;
-    results.innerHTML=INDICES.map((x,i)=>
-      "<tr><td>"+(i+1)+"</td><td>"+x.name+
-      "</td><td colspan='6' class='bad'>"+error.message+"</td></tr>"
-    ).join("");
-  }finally{
-    button.disabled=false;
-  }
-}
-
-document.addEventListener("DOMContentLoaded",()=>{
-  document.getElementById("scan").addEventListener("click",scan);
-});
-</script>
-</body>
-</html>
+const URL='wss://ws.binaryws.com/websockets/v3';
+const fallback=[['R_10','Volatility 10 (1s)'],['R_25','Volatility 25 (1s)'],['R_50','Volatility 50 (1s)'],['R_75','Volatility 75 (1s)'],['R_100','Volatility 100 (1s)']].map(x=>({symbol:x[0],name:x[1]}));
+const $=x=>document.getElementById(x);function status(t,c=''){ $('status').className='status '+c;$('status').textContent=t }
+function connect(){return new Promise((ok,no)=>{let w=new WebSocket(URL),tm=setTimeout(()=>{try{w.close()}catch(e){}no(Error('Deriv WebSocket connection timed out'))},10000);w.onopen=()=>{clearTimeout(tm);ok(w)};w.onerror=()=>{clearTimeout(tm);no(Error('Deriv WebSocket connection failed'))}})}
+function req(w,p){return new Promise((ok,no)=>{let done=false,tm=setTimeout(()=>{if(!done){done=true;no(Error('Deriv request timed out'))}},12000),fn=e=>{if(done)return;let d;try{d=JSON.parse(e.data)}catch(e){return}if(d.req_id!==p.req_id)return;done=true;clearTimeout(tm);w.removeEventListener('message',fn);if(d.error)no(Error(d.error.message||'Deriv request rejected'));else ok(d)};w.addEventListener('message',fn);try{w.send(JSON.stringify(p))}catch(e){done=true;clearTimeout(tm);w.removeEventListener('message',fn);no(e)}})}
+async function symbols(w){let d=await req(w,{active_symbols:'brief',req_id:1}),a=Array.isArray(d.active_symbols)?d.active_symbols:[],f=a.map(x=>({symbol:x.underlying_symbol||x.symbol,name:x.underlying_symbol_name||x.display_name||x.underlying_symbol||x.symbol})).filter(x=>x.symbol&&(/volatility\s*(10|25|50|75|100)\s*\(1s\)/i.test(x.name)||/^R_(10|25|50|75|100)$/.test(x.symbol)));return f.length?[...new Map(f.map(x=>[x.symbol,x])).values()]:fallback}
+function digit(p){let m=String(p).match(/(\d)$/);return m?+m[1]:null}function stat(a){let c=Array(10).fill(0);a.forEach(p=>{let d=digit(p);if(d!==null)c[d]++});let n=c.reduce((x,y)=>x+y,0);return c.map((v,d)=>({d,n:v,p:n?v/n*100:0})).sort((a,b)=>b.p-a.p)}
+async function hist(w,s,n,id){let d=await req(w,{ticks_history:s,count:n,end:'latest',style:'ticks',subscribe:0,req_id:id});return d.history&&Array.isArray(d.history.prices)?d.history.prices:[]}
+async function one(w,x,n,min,id){let p=await hist(w,x.symbol,n,id);if(p.length<Math.max(100,min))throw Error('Not enough tick history');let cut=Math.floor(p.length*.7),tr=p.slice(0,cut),oo=p.slice(cut),t=stat(tr),top=t[0],sec=t[1],wins=oo.reduce((z,v)=>z+(digit(v)===top.d?1:0),0);return {...x,ticks:p.length,digit:top.d,train:top.p,second:sec.p,lead:top.p-sec.p,oos:oo.length?wins/oo.length*100:0,oosSignals:oo.length,valid:oo.length>=min}}
+async function run(){let b=$('scan');b.disabled=true;$('rows').innerHTML='';$('best').textContent=$('digit').textContent=$('train').textContent=$('oos').textContent='—';$('summary').textContent='Connecting to Deriv…';$('bestBox').className='box';try{let n=+$('history').value,min=+$('minOos').value,lead=+$('minLead').value,w=await connect();status('Connected. Discovering current 1-second Volatility symbols…');let ss=await symbols(w),rs=[],id=10;for(let i=0;i<ss.length;i++){status(`Scanning ${ss[i].name} (${i+1}/${ss.length})…`);try{rs.push(await one(w,ss[i],n,min,id++))}catch(e){rs.push({...ss[i],ticks:0,digit:null,train:null,second:null,lead:null,oos:null,oosSignals:0,valid:false,error:e.message})}}try{w.close()}catch(e){}rs.sort((a,b)=>(b.oos??-1)-(a.oos??-1)||(b.lead??-1)-(a.lead??-1));$('rows').innerHTML=rs.map((r,i)=>`<tr><td>${i+1}</td><td>${r.name}</td><td>${r.ticks||'—'}</td><td>${r.digit??'—'}</td><td>${r.train==null?'—':r.train.toFixed(2)+'%'}</td><td>${r.oos==null?'—':r.oos.toFixed(2)+'%'}</td><td>${r.lead==null?'—':r.lead.toFixed(2)+' pp'}</td><td>${r.oosSignals||'—'}</td><td>${r.error?'ERROR: '+r.error:(r.valid?'VALID':'INSUFFICIENT')}</td></tr>`).join('');let q=rs.filter(r=>!r.error&&r.valid&&r.lead>=lead);if(!q.length){$('best').textContent='NONE';$('bestBox').className='box warn';$('summary').textContent=`No index passed all filters: at least ${min} OOS signals and a ${lead.toFixed(2)} pp training lead.`;status('Scan complete — no qualified signal.','warn');return}q.sort((a,b)=>b.oos-a.oos||b.lead-a.lead);let z=q[0];$('best').textContent=z.name;$('digit').textContent=z.digit;$('train').textContent=z.train.toFixed(2)+'%';$('oos').textContent=z.oos.toFixed(2)+'%';$('bestBox').className='box good';$('summary').textContent=`Qualified research candidate: ${z.name} — digit ${z.digit}, training ${z.train.toFixed(2)}%, lead ${z.lead.toFixed(2)} pp, OOS ${z.oos.toFixed(2)}%.`;status('Scan complete — qualified candidate found.','good')}catch(e){status('Scanner error: '+e.message,'bad');$('summary').textContent='The public Deriv market-data request could not be completed.'}finally{b.disabled=false}}
+$('scan').onclick=run;
+</script></body></html>
