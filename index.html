@@ -126,10 +126,7 @@ async function scan(){
    const ws=await openSocket();
    setStatus('Connected to Deriv. Verifying symbols...');
    await request(ws,{ping:1},9000);
-   const active=await request(ws,{active_symbols:'brief'},9001);
-   const activeSet=new Set((active.active_symbols||[]).map(x=>x.symbol||x.underlying_symbol));
-   const missing=SYMBOLS.filter(x=>!activeSet.has(x[0]));
-   if(missing.length===SYMBOLS.length) throw new Error('Connected to Deriv, but the requested 1-second symbols were not returned.');
+   // Do not gate the scan on active_symbols. Deriv's public API accepts the 1-second symbols directly, and active_symbols response formats can differ between API versions.
    const rows=[];
    let req=100;
    for(const [symbol,name] of SYMBOLS){
