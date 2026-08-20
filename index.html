@@ -24,14 +24,33 @@ body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#18202a}.wra
 <div class="card note"><b>Important:</b> Historical digit frequency is not a guarantee of the next tick. This version uses a training/OOS split and a minimum lead filter, so it can return <b>NONE</b> when evidence is weak.</div>
 </div>
 <script>
-const URL='wss://ws.binaryws.com/websockets/v3';
-const fallback=[['R_10','Volatility 10 (1s)'],['R_25','Volatility 25 (1s)'],['R_50','Volatility 50 (1s)'],['R_75','Volatility 75 (1s)'],['R_100','Volatility 100 (1s)']].map(x=>({symbol:x[0],name:x[1]}));
+const URLS=['wss://ws.binaryws.com/websockets/v3','wss://ws.derivws.com/websockets/v3'];
+const fallback=[['1HZ10V','Volatility 10 (1s)'],['1HZ25V','Volatility 25 (1s)'],['1HZ50V','Volatility 50 (1s)'],['1HZ75V','Volatility 75 (1s)'],['1HZ100V','Volatility 100 (1s)']].map(x=>({symbol:x[0],name:x[1]}));
 const $=x=>document.getElementById(x);function status(t,c=''){ $('status').className='status '+c;$('status').textContent=t }
-function connect(){return new Promise((ok,no)=>{let w=new WebSocket(URL),tm=setTimeout(()=>{try{w.close()}catch(e){}no(Error('Deriv WebSocket connection timed out'))},10000);w.onopen=()=>{clearTimeout(tm);ok(w)};w.onerror=()=>{clearTimeout(tm);no(Error('Deriv WebSocket connection failed'))}})}
+async function connect(){
+  let last='';
+  for(let attempt=0;attempt<3;attempt++){
+    for(const url of URLS){
+      try{
+        const w=new WebSocket(url);
+        await new Promise((resolve,reject)=>{
+          let settled=false;
+          const tm=setTimeout(()=>{if(!settled){settled=true;try{w.close()}catch(e){}reject(Error('connection timed out'))}},8000);
+          w.onopen=()=>{if(!settled){settled=true;clearTimeout(tm);resolve()}};
+          w.onerror=()=>{if(!settled){settled=true;clearTimeout(tm);try{w.close()}catch(e){}reject(Error('connection failed'))}};
+          w.onclose=()=>{if(!settled){settled=true;clearTimeout(tm);reject(Error('connection closed'))}};
+        });
+        return w;
+      }catch(e){last=e.message||String(e)}
+    }
+    await new Promise(r=>setTimeout(r,700*(attempt+1)));
+  }
+  throw Error('Deriv WebSocket connection failed after 3 attempts. '+last);
+}
 function req(w,p){return new Promise((ok,no)=>{let done=false,tm=setTimeout(()=>{if(!done){done=true;no(Error('Deriv request timed out'))}},12000),fn=e=>{if(done)return;let d;try{d=JSON.parse(e.data)}catch(e){return}if(d.req_id!==p.req_id)return;done=true;clearTimeout(tm);w.removeEventListener('message',fn);if(d.error)no(Error(d.error.message||'Deriv request rejected'));else ok(d)};w.addEventListener('message',fn);try{w.send(JSON.stringify(p))}catch(e){done=true;clearTimeout(tm);w.removeEventListener('message',fn);no(e)}})}
-async function symbols(w){let d=await req(w,{active_symbols:'brief',req_id:1}),a=Array.isArray(d.active_symbols)?d.active_symbols:[],f=a.map(x=>({symbol:x.underlying_symbol||x.symbol,name:x.underlying_symbol_name||x.display_name||x.underlying_symbol||x.symbol})).filter(x=>x.symbol&&(/volatility\s*(10|25|50|75|100)\s*\(1s\)/i.test(x.name)||/^R_(10|25|50|75|100)$/.test(x.symbol)));return f.length?[...new Map(f.map(x=>[x.symbol,x])).values()]:fallback}
+async function symbols(w){let d=await req(w,{active_symbols:'brief',product_type:'basic',req_id:1}),a=Array.isArray(d.active_symbols)?d.active_symbols:[],f=a.map(x=>({symbol:x.underlying_symbol||x.symbol,name:x.underlying_symbol_name||x.display_name||x.underlying_symbol||x.symbol})).filter(x=>x.symbol&&(/volatility\s*(10|25|50|75|100)\s*\(1s\)/i.test(x.name)||/^1HZ(10|25|50|75|100)V$/.test(x.symbol)));return f.length?[...new Map(f.map(x=>[x.symbol,x])).values()]:fallback}
 function digit(p){let m=String(p).match(/(\d)$/);return m?+m[1]:null}function stat(a){let c=Array(10).fill(0);a.forEach(p=>{let d=digit(p);if(d!==null)c[d]++});let n=c.reduce((x,y)=>x+y,0);return c.map((v,d)=>({d,n:v,p:n?v/n*100:0})).sort((a,b)=>b.p-a.p)}
-async function hist(w,s,n,id){let d=await req(w,{ticks_history:s,count:n,end:'latest',style:'ticks',subscribe:0,req_id:id});return d.history&&Array.isArray(d.history.prices)?d.history.prices:[]}
+async function hist(w,s,n,id){let d=await req(w,{ticks_history:s,count:n,end:'latest',style:'ticks',req_id:id});return d.history&&Array.isArray(d.history.prices)?d.history.prices:[]}
 async function one(w,x,n,min,id){let p=await hist(w,x.symbol,n,id);if(p.length<Math.max(100,min))throw Error('Not enough tick history');let cut=Math.floor(p.length*.7),tr=p.slice(0,cut),oo=p.slice(cut),t=stat(tr),top=t[0],sec=t[1],wins=oo.reduce((z,v)=>z+(digit(v)===top.d?1:0),0);return {...x,ticks:p.length,digit:top.d,train:top.p,second:sec.p,lead:top.p-sec.p,oos:oo.length?wins/oo.length*100:0,oosSignals:oo.length,valid:oo.length>=min}}
 async function run(){let b=$('scan');b.disabled=true;$('rows').innerHTML='';$('best').textContent=$('digit').textContent=$('train').textContent=$('oos').textContent='—';$('summary').textContent='Connecting to Deriv…';$('bestBox').className='box';try{let n=+$('history').value,min=+$('minOos').value,lead=+$('minLead').value,w=await connect();status('Connected. Discovering current 1-second Volatility symbols…');let ss=await symbols(w),rs=[],id=10;for(let i=0;i<ss.length;i++){status(`Scanning ${ss[i].name} (${i+1}/${ss.length})…`);try{rs.push(await one(w,ss[i],n,min,id++))}catch(e){rs.push({...ss[i],ticks:0,digit:null,train:null,second:null,lead:null,oos:null,oosSignals:0,valid:false,error:e.message})}}try{w.close()}catch(e){}rs.sort((a,b)=>(b.oos??-1)-(a.oos??-1)||(b.lead??-1)-(a.lead??-1));$('rows').innerHTML=rs.map((r,i)=>`<tr><td>${i+1}</td><td>${r.name}</td><td>${r.ticks||'—'}</td><td>${r.digit??'—'}</td><td>${r.train==null?'—':r.train.toFixed(2)+'%'}</td><td>${r.oos==null?'—':r.oos.toFixed(2)+'%'}</td><td>${r.lead==null?'—':r.lead.toFixed(2)+' pp'}</td><td>${r.oosSignals||'—'}</td><td>${r.error?'ERROR: '+r.error:(r.valid?'VALID':'INSUFFICIENT')}</td></tr>`).join('');let q=rs.filter(r=>!r.error&&r.valid&&r.lead>=lead);if(!q.length){$('best').textContent='NONE';$('bestBox').className='box warn';$('summary').textContent=`No index passed all filters: at least ${min} OOS signals and a ${lead.toFixed(2)} pp training lead.`;status('Scan complete — no qualified signal.','warn');return}q.sort((a,b)=>b.oos-a.oos||b.lead-a.lead);let z=q[0];$('best').textContent=z.name;$('digit').textContent=z.digit;$('train').textContent=z.train.toFixed(2)+'%';$('oos').textContent=z.oos.toFixed(2)+'%';$('bestBox').className='box good';$('summary').textContent=`Qualified research candidate: ${z.name} — digit ${z.digit}, training ${z.train.toFixed(2)}%, lead ${z.lead.toFixed(2)} pp, OOS ${z.oos.toFixed(2)}%.`;status('Scan complete — qualified candidate found.','good')}catch(e){status('Scanner error: '+e.message,'bad');$('summary').textContent='The public Deriv market-data request could not be completed.'}finally{b.disabled=false}}
 $('scan').onclick=run;
