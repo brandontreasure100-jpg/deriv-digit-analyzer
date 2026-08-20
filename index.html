@@ -76,8 +76,7 @@ const SYMBOLS=[
  ['1HZ50V','Volatility 50 (1s)'],['1HZ75V','Volatility 75 (1s)'],
  ['1HZ100V','Volatility 100 (1s)']
 ];
-const APP_ID=1089;
-const ENDPOINT=`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+const ENDPOINT=`wss://ws.binaryws.com/websockets/v3`;
 let socket=null, timer=null;
 
 function setStatus(text){document.getElementById('status').textContent=text;}
